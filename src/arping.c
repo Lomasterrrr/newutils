@@ -515,6 +515,9 @@ int main(int c, char **av)
 	av += optind;
 	if_setup();
 
+	if (c <= 0 && !Bflag && !Gflag)
+		errx(1, "no targets specified");
+
 	/* Broadcast ipv4 address.  */
 	if (Bflag) {
 		memset(&ip, 0xff, 4);
@@ -529,8 +532,6 @@ int main(int c, char **av)
 
 	/* Custom user targets: cidr4, ipv4, dns.  */
 	else while (*av) {
-		if (c <= 0)
-			errx(1, "no targets specified");
 		char *p = *av++, *sb;
 
 		if ((sb = strchr(p, '/')))
