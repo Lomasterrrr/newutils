@@ -8,7 +8,7 @@ case "$1" in
     *) 
         cc $CFLAGS -c src/base/*.c
         cc $CFLAGS -c src/*.c
-        cc $CFLAGS cksum.o err.o if.o random.o utils.o arping.o -o arping
+        cc $CFLAGS err.o if.o utils.o arping.o -o arping
         ;;
 esac
 
