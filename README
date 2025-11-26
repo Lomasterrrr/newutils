@@ -1,4 +1,3 @@
-```
 newutils -- is a set of network utilities for Linux or BSD; they are a "new" version of my
 old "rawutils".  Unlike the latter, these support BSD.
 
@@ -9,4 +8,3 @@ For compile use:
 	./BUILD
 For cleaning:
 	./BUILD clean
-```
