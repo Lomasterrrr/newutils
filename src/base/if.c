@@ -202,7 +202,7 @@ __get_dstmac(const char *if_name, int if_index, u_char *gw, u_char *buf)
 		struct in_addr tmp = {0};
 
 		if (sscanf(line, "%31s %*31s %*31s %31s %*31s %16s",
-				ip, mac, name) != 6)
+				ip, mac, name) != 3)
 			continue;
 
 		if (strcmp(name, if_name))

@@ -529,15 +529,15 @@ int main(int c, char **av)
 
 	/* Custom user targets: cidr4, ipv4, dns.  */
 	else while (*av) {
+		if (c <= 0)
+			errx(1, "no targets specified");
 		char *p = *av++, *sb;
 
 		if ((sb = strchr(p, '/')))
 			*sb++ = '\0';
-
 		if ((inet_pton(AF_INET, p, &ip)) != 1)
 			if (!resolveipv4(p, &ip))
 				errx(1, "failed resolve \"%s\"", p);
-
 		if (!sb)
 			loop(&ip);
 		else {
