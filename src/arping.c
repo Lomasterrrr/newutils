@@ -1,38 +1,63 @@
+/*
+ * Copyright (c) 2025, lomaster. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #include "../include/base.h"
 
 static bool Iflag = 0;
 static bool _0flag = 0;
+static long long wait = 1000 * 1000000LL;	/* timeout */
+static dlt_t *dlt = NULL;	/* socket */
 static bool sflag = 0;
 static struct in_addr sopt = {0};
 static bool Sflag = 0;
+static u_char outpack[42];	/* packet for send */
 static struct ether_addr Sopt = {0};
 static bool bflag = 0;
 static bool Bflag = 0;
+static bool prstats = 0;	/* print last stats? */
 static bool Gflag = 0;
 static bool Nflag = 0;
 static bool tflag = 0;
 static struct ether_addr topt = {0};
+static struct in_addr *curtp = NULL;	/* current target */
 static bool vflag = 0;
 static bool eflag = 0;
+static if_data_t ifd = {0};	/* interface data */
 static bool Vflag = 0;
 static bool Dflag = 0;
 static bool lflag = 0;
-static if_data_t ifd = {0};
-static struct ether_addr lmac = {0};
-static bool prstats = 0;
-static struct in_addr *curtp = NULL;
-static u_char outpack[42];
-static u_short op = 1;
-static size_t npackets = 5;
-static dlt_t *dlt = NULL;
+static struct ether_addr lmac = {0};	/* last mac address */
+static size_t npackets = 5;	/* number of packets (-n, -N) */
 static size_t ntransmitted = 0;
 static size_t nreceived = 0;
 static size_t nbroadcast = 0;
+static u_short op = 1;	/* default arp opetaion request */
 static long long tmin = 0;
 static long long tmax = 0;
 static long long tsum = 0;
-static long long wait = 1000 * 1000000LL;
-static long long interval = 1000 * 1000000LL;
+static long long interval = 1000 * 1000000LL;	/* delay/interval */
 
 inline static void usage(char **av)
 {
