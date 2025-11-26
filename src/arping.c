@@ -225,16 +225,6 @@ finish(int sig)
 	exit(0);
 }
 
-inline static void
-tvsub(struct timeval *out, struct timeval *in)
-{
-	if ((out->tv_usec -= in->tv_usec) < 0) {
-		out->tv_sec--;
-		out->tv_usec += 1000000;
-	}
-	out->tv_sec -= in->tv_sec;
-}
-
 inline static long long
 tvrtt(struct timeval *ts_s, struct timeval *ts_e)
 {
@@ -407,7 +397,9 @@ loop(struct in_addr *ip)
 	curtp = ip;
 
 	if (!Dflag)
-		printf("ARPING %s\n", inet_ntoa(*ip));
+		printf("ARPING %s from %hhu.%hhu.%hhu.%hhu %s\n",
+		    inet_ntoa(*ip), ifd.srcip4[0], ifd.srcip4[1], ifd.srcip4[2],
+		    ifd.srcip4[3], ifd.name);
 
 	for (;;) {
 		/*

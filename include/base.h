@@ -170,4 +170,7 @@ void ip_net(u_char *p, u_char *mask, u_char *buf);
 /* Get ipv4 from dns.  */
 bool resolveipv4(const char *hostname, struct in_addr *buf);
 
+/* Timeval sub; out = out - in.  */
+void tvsub(struct timeval *out, struct timeval *in);
+
 #endif
