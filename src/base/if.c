@@ -14,7 +14,7 @@ dlt_t *dlt_open(const char *if_name)
 	dlt_t *dlt = NULL;
 
 	if (!if_name)
-		goto err;
+		return NULL;
 	if (!(dlt = calloc(1, sizeof(*dlt))))
 		return NULL;
 
@@ -22,7 +22,7 @@ dlt_t *dlt_open(const char *if_name)
 	memset(dlt, 0, sizeof(*dlt));
 
 #ifdef __LINUX
-	dlt->fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL);
+	dlt->fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 #else
 	char name[512] = {0};
 	int n = 0;
@@ -193,7 +193,7 @@ __get_dstmac(const char *if_name, int if_index, u_char *gw, u_char *buf)
 	if (!(fp = fopen("/proc/net/arp", "r")))
 		return 0;
 
-	fgets(line, sizeof(line), fp);
+	(void)fgets(line, sizeof(line), fp);
 	while ((fgets(line, sizeof(line), fp))) {
 		struct ether_addr *tmp1 = NULL;
 		struct in_addr tmp = {0};
@@ -319,7 +319,7 @@ __get_gate4_to_internet(const char *if_name, int if_index, u_char *buf)
 	if (!(fp = fopen("/proc/net/route", "r")))
 		return 0;
 
-	fgets(line, sizeof(line), fp);
+	(void)fgets(line, sizeof(line), fp);
 	while ((fgets(line, sizeof(line), fp))) {
 		if (sscanf(line, "%15s %lx %lx", name,
 				&dst, &gw) != 3)

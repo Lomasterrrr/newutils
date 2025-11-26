@@ -16,6 +16,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include <poll.h>
+#include <stdarg.h>
 #include <getopt.h>
 #include <netdb.h>
 
@@ -26,7 +27,6 @@
 #include <sys/time.h>
 #include <arpa/inet.h>
 #include <net/if.h>
-#include <net/ethernet.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -36,6 +36,7 @@
 #include <netpacket/packet.h>
 #include <netinet/ether.h>
 #else
+#include <net/ethernet.h>
 #include <net/bpf.h>
 #include <net/if_dl.h>
 #include <sys/sysctl.h>
