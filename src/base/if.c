@@ -193,7 +193,10 @@ __get_dstmac(const char *if_name, int if_index, u_char *gw, u_char *buf)
 	if (!(fp = fopen("/proc/net/arp", "r")))
 		return 0;
 
-	(void)fgets(line, sizeof(line), fp);
+	if (!(fgets(line, sizeof(line), fp))) {
+		fclose(fp);
+		return 0;
+	}
 	while ((fgets(line, sizeof(line), fp))) {
 		struct ether_addr *tmp1 = NULL;
 		struct in_addr tmp = {0};
@@ -319,7 +322,10 @@ __get_gate4_to_internet(const char *if_name, int if_index, u_char *buf)
 	if (!(fp = fopen("/proc/net/route", "r")))
 		return 0;
 
-	(void)fgets(line, sizeof(line), fp);
+	if (!(fgets(line, sizeof(line), fp))) {
+		fclose(fp);
+		return 0;
+	}
 	while ((fgets(line, sizeof(line), fp))) {
 		if (sscanf(line, "%15s %lx %lx", name,
 				&dst, &gw) != 3)
