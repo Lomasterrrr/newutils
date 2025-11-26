@@ -116,10 +116,8 @@ inline static bool callback(void *in, size_t n, void *arg)
 			return 0;
 		if (op == 2 && ntohs(*(u_short *)(buf + 20)) != 1)
 			return 0;
-
 		if (memcmp(buf + 38, ifd.srcip4, 4) != 0)
 			return 0;
-
 		if (*(u_int *)(buf + 28) != target->s_addr)
 			return 0;
 
@@ -127,18 +125,15 @@ inline static bool callback(void *in, size_t n, void *arg)
 	case 3:
 		if (ntohs(*(u_short *)(buf + 20)) != 4)
 			return 0;
-
 		if (memcmp((buf + 32), ifd.src, 6) != 0)
 			return 0;
-
 		if (*(u_int *)(buf + 38) != target->s_addr)
 			return 0;
-		
+
 		break;
 	case 4:
 		if (ntohs(*(u_short *)(buf + 20)) != 3)
 			return 0;
-		
 		if (memcmp((buf + 22), ifd.src, 6) != 0)
 			return 0;
 
@@ -178,7 +173,6 @@ inline static void stats(struct in_addr *target)
 {
 	if (!nreceived && lflag)
 		goto end;
-
 	if (Dflag) {
 		if (ntransmitted)
 			printf(" %ld%% packet loss", (size_t)
@@ -186,7 +180,6 @@ inline static void stats(struct in_addr *target)
 				ntransmitted));
 		goto end;
 	}
-
 	printf("\n----%s ARPING Statistics----\n", inet_ntoa(*target));
 	printf("%ld packets transmitted (%ld broadcast), %ld packets received",
 		ntransmitted, nbroadcast, nreceived);
@@ -208,8 +201,8 @@ inline static void stats(struct in_addr *target)
 		printf("/%s", timefmt(tmax, tmp, sizeof(tmp)));
 		putchar('\n');
 	}
-end:
-	putchar('\n');
+
+end:	putchar('\n');
 	prstats = 1;
 }
 
@@ -232,8 +225,7 @@ inline static void tvsub(struct timeval *out, struct timeval *in)
 	out->tv_sec -= in->tv_sec;
 }
 
-inline static long long tvrtt(struct timeval *ts_s,
-		struct timeval *ts_e)
+inline static long long tvrtt(struct timeval *ts_s, struct timeval *ts_e)
 {
 	struct timeval tv = *ts_e;
 	long long rtt;
@@ -377,6 +369,7 @@ inline static void pinger(struct in_addr *target)
 	if (n < 0 || n != sizeof(outpack)) {
 		if (n < 0)
 			warn("sendto");
+
 		warnx("wrote %s %lu chars, ret=%zd",
 			inet_ntoa(*target),
 			sizeof(outpack), n);
@@ -402,10 +395,11 @@ inline static void loop(struct in_addr *ip)
 
 	for (;;) {
 
-		/* Classic ping loop; packet creation & sending
-		   (pinger), receiving (dlt_recv_cb), displaying
-		   the received data (pr_pack), delay (sleepns). */
-
+		/*
+		 * Classic ping loop; packet creation & sending
+		 * (pinger), receiving (dlt_recv_cb), displaying
+		 * the received data (pr_pack), delay (sleepns).
+		 */
 		struct timeval ts_s, ts_e;
 		u_char buf[2048] = {0};
 		ssize_t n;
@@ -414,9 +408,11 @@ inline static void loop(struct in_addr *ip)
 		if ((n = dlt_recv_cb(dlt, buf, sizeof(buf), callback, 
 				(void *)ip, wait, &ts_s, &ts_e)) == -1) {
 
-			/* There is no reason to believe that he
-			   is the same; although it is hard to
-			   believe in change.  */
+			/*
+			 * There is no reason to believe that he is
+			 * the same; although it is hard to believe
+			 * in change.
+			 */
 			lmac.__ether_octet[0] = '\n';
 
 			if ((eflag || Vflag) && !lflag)
