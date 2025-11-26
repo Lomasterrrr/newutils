@@ -21,20 +21,21 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
-*/
+ */
 
 #include "../../include/base.h"
 
 struct dlt_handle {
-	int fd;	/* File descriptor.  */
-	u_char buf[DLT_BUFLEN];	/* Read buffer.  */
+	int fd;			/* File descriptor.  */
+	u_char buf[DLT_BUFLEN]; /* Read buffer.  */
 #ifdef __LINUX
 	/* Need for sendto() on AF_PACKET sockets.  */
 	struct sockaddr_ll sll;
 #endif
 };
 
-dlt_t *dlt_open(const char *if_name)
+dlt_t *
+dlt_open(const char *if_name)
 {
 	dlt_t *dlt = NULL;
 
@@ -49,7 +50,7 @@ dlt_t *dlt_open(const char *if_name)
 #ifdef __LINUX
 	dlt->fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 #else
-	char name[512] = {0};
+	char name[512] = { 0 };
 	int n = 0;
 
 	if ((dlt->fd = open("/dev/bpf", O_RDWR)) == -1) {
@@ -58,22 +59,20 @@ dlt_t *dlt_open(const char *if_name)
 		if (dlt->fd == -1 && errno != ENOENT) {
 			do {
 				/* Brute force /dev/bpf[0-256].  */
-				snprintf(name, sizeof(name),
-					"/dev/bpf%d", n++);
+				snprintf(name, sizeof(name), "/dev/bpf%d", n++);
 				if (((dlt->fd = open(name, O_RDWR))) == -1 &&
-						 errno == EACCES)
+				    errno == EACCES)
 					dlt->fd = open(name, O_RDONLY);
-			} while (dlt->fd < 0 && errno == EBUSY &&
-				 n < 256);
+			} while (dlt->fd < 0 && errno == EBUSY && n < 256);
 		}
 	}
 
 	n = DLT_BUFLEN;
-	if (ioctl(dlt->fd, BIOCSBLEN, (u_int*)&n) < 0)
+	if (ioctl(dlt->fd, BIOCSBLEN, (u_int *)&n) < 0)
 		goto err;
 
-	n = 1;	/* Leads to a similarity to Linux.  */
-	if (ioctl(dlt->fd, BIOCIMMEDIATE, (u_int*)&n) < 0)
+	n = 1; /* Leads to a similarity to Linux.  */
+	if (ioctl(dlt->fd, BIOCIMMEDIATE, (u_int *)&n) < 0)
 		goto err;
 #endif
 
@@ -83,15 +82,14 @@ dlt_t *dlt_open(const char *if_name)
 #ifdef __LINUX
 	dlt->sll.sll_ifindex = if_nametoindex(if_name);
 #else
-	struct ifreq ifr = {0};
+	struct ifreq ifr = { 0 };
 
-	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name),
-		"%s", if_name);
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", if_name);
 
 	if (ioctl(dlt->fd, BIOCSETIF, &ifr) < 0)
 		goto err;
 #endif
-		
+
 	return dlt;
 
 err:
@@ -101,21 +99,22 @@ err:
 	return NULL;
 }
 
-ssize_t dlt_send(dlt_t *dlt, void *ptr, size_t n)
+ssize_t
+dlt_send(dlt_t *dlt, void *ptr, size_t n)
 {
 	if (!dlt)
 		return -1;
 
 #ifdef __LINUX
-	return sendto(dlt->fd, ptr, n, 0,
-		 (struct sockaddr *)&dlt->sll,
-		 sizeof(dlt->sll));
+	return sendto(dlt->fd, ptr, n, 0, (struct sockaddr *)&dlt->sll,
+	    sizeof(dlt->sll));
 #else
 	return write(dlt->fd, ptr, n);
 #endif
 }
 
-ssize_t dlt_recv(dlt_t *dlt, void *ptr, size_t n)
+ssize_t
+dlt_recv(dlt_t *dlt, void *ptr, size_t n)
 {
 	if (!dlt)
 		return -1;
@@ -139,15 +138,15 @@ ssize_t dlt_recv(dlt_t *dlt, void *ptr, size_t n)
 #endif
 
 	if (ptr && n) {
-		n = (n > (size_t)ret) ?
-			 (size_t)ret : n;
+		n = (n > (size_t)ret) ? (size_t)ret : n;
 		memcpy(ptr, p, n);
 	}
 
 	return n;
 }
 
-void dlt_close(dlt_t *dlt)
+void
+dlt_close(dlt_t *dlt)
 {
 	if (dlt) {
 		if (dlt->fd != -1)
@@ -156,14 +155,14 @@ void dlt_close(dlt_t *dlt)
 	}
 }
 
-ssize_t dlt_recv_cb(dlt_t *dlt, void *buf, size_t n,
-		dlt_rcall_t cb, void *arg, long long ns,
-		struct timeval *ts_s, struct timeval *ts_e)
+ssize_t
+dlt_recv_cb(dlt_t *dlt, void *buf, size_t n, dlt_rcall_t cb, void *arg,
+    long long ns, struct timeval *ts_s, struct timeval *ts_e)
 {
 	if (!dlt || !buf || !n || !cb)
 		return -1;
 
-	struct timespec s = {0}, c = {0};
+	struct timespec s = { 0 }, c = { 0 };
 	ssize_t ret;
 
 	clock_gettime(CLOCK_MONOTONIC, &s);
@@ -190,7 +189,7 @@ ssize_t dlt_recv_cb(dlt_t *dlt, void *buf, size_t n,
 
 			/* Time left; return? */
 			if (((c.tv_sec - s.tv_sec) * 1000000000LL +
-					(c.tv_nsec - s.tv_nsec)) >= ns)
+				(c.tv_nsec - s.tv_nsec)) >= ns)
 				return -1;
 
 			continue;
@@ -201,7 +200,6 @@ ssize_t dlt_recv_cb(dlt_t *dlt, void *buf, size_t n,
 
 	/* NOTREACHED */
 	return -1;
-	
 }
 
 inline static bool
@@ -224,10 +222,10 @@ __get_dstmac(const char *if_name, int if_index, u_char *gw, u_char *buf)
 	}
 	while ((fgets(line, sizeof(line), fp))) {
 		struct ether_addr *tmp1 = NULL;
-		struct in_addr tmp = {0};
+		struct in_addr tmp = { 0 };
 
-		if (sscanf(line, "%31s %*31s %*31s %31s %*31s %16s",
-				ip, mac, name) != 3)
+		if (sscanf(line, "%31s %*31s %*31s %31s %*31s %16s", ip, mac,
+			name) != 3)
 			continue;
 
 		if (strcmp(name, if_name))
@@ -252,8 +250,8 @@ __get_dstmac(const char *if_name, int if_index, u_char *gw, u_char *buf)
 	char *tmp, *lim, *nxt;
 	size_t n;
 
-	int mib[6] = {CTL_NET, PF_ROUTE, 0, AF_INET,
-			NET_RT_FLAGS, RTF_LLINFO};
+	int mib[6] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS,
+		RTF_LLINFO };
 
 	if (sysctl(mib, 6, NULL, &n, NULL, 0) < 0)
 		return 0;
@@ -279,12 +277,11 @@ __get_dstmac(const char *if_name, int if_index, u_char *gw, u_char *buf)
 			if (rtm->rtm_addrs & (1 << n)) {
 				struct sockaddr *sa = (struct sockaddr *)ptr;
 
-				if (sa->sa_family == AF_INET &&
-						 n == RTAX_DST)
+				if (sa->sa_family == AF_INET && n == RTAX_DST)
 					dst = (struct sockaddr_in *)sa;
 
 				if (sa->sa_family == AF_LINK &&
-						 n == RTAX_GATEWAY)
+				    n == RTAX_GATEWAY)
 					sdl = (struct sockaddr_dl *)sa;
 
 				ptr += sa->sa_len;
@@ -318,12 +315,10 @@ __get_ipv6(const char *if_name, u_char *buf)
 		return 0;
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family ==
-				AF_INET6 && !strcmp(ifa->ifa_name,
-				if_name)) {
-
-			struct sockaddr_in6 *sin6 =
-				(struct sockaddr_in6 *)ifa->ifa_addr;
+		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET6 &&
+		    !strcmp(ifa->ifa_name, if_name)) {
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)
+							ifa->ifa_addr;
 
 			/* Localhost? Hoc okay.  */
 			memcpy(buf, &sin6->sin6_addr, 16);
@@ -352,8 +347,7 @@ __get_gate4_to_internet(const char *if_name, int if_index, u_char *buf)
 		return 0;
 	}
 	while ((fgets(line, sizeof(line), fp))) {
-		if (sscanf(line, "%15s %lx %lx", name,
-				&dst, &gw) != 3)
+		if (sscanf(line, "%15s %lx %lx", name, &dst, &gw) != 3)
 			continue;
 
 		/* Via in internet.  */
@@ -377,8 +371,8 @@ __get_gate4_to_internet(const char *if_name, int if_index, u_char *buf)
 	char *tmp, *lim, *nxt;
 	size_t n;
 
-	int mib[6] = {CTL_NET, PF_ROUTE, 0, AF_INET,
-			NET_RT_FLAGS, RTF_GATEWAY};
+	int mib[6] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS,
+		RTF_GATEWAY };
 
 	if (sysctl(mib, 6, NULL, &n, NULL, 0) < 0)
 		return 0;
@@ -406,14 +400,14 @@ __get_gate4_to_internet(const char *if_name, int if_index, u_char *buf)
 					gw = (struct sockaddr_in *)sa;
 				if (n == RTAX_DST)
 					dst = (struct sockaddr_in *)sa;
-				sa = (struct sockaddr *)((char*)sa +
-						 sa->sa_len);
+				sa = (struct sockaddr *)((char *)sa +
+				    sa->sa_len);
 			}
 		}
 
 		/* Via in internet.  */
-		if (dst && dst->sin_addr.s_addr == 0 &&
-				gw && rtm->rtm_index == if_index) {
+		if (dst && dst->sin_addr.s_addr == 0 && gw &&
+		    rtm->rtm_index == if_index) {
 			memcpy(buf, &gw->sin_addr, 4);
 			free(tmp);
 			return 1;
@@ -425,21 +419,21 @@ __get_gate4_to_internet(const char *if_name, int if_index, u_char *buf)
 #endif
 }
 
-
 /* If the interface is found, it returns 1; otherwise, 0.
  * It does not react to the presence of data; let other
  * functions do that.  */
-inline static bool __generic_if_get(const char *if_name, if_data_t *buf)
+inline static bool
+__generic_if_get(const char *if_name, if_data_t *buf)
 {
 	if (!buf)
 		return 0;
 
-	struct ifreq ifr = {0};
+	struct ifreq ifr = { 0 };
 	int fd = 0;
 
 	/* Not found? */
 	if (!if_nametoindex(if_name))
-		return 0;	
+		return 0;
 
 	buf->index = if_nametoindex(if_name);
 	snprintf(buf->name, sizeof(buf->name), "%s", if_name);
@@ -453,13 +447,12 @@ inline static bool __generic_if_get(const char *if_name, if_data_t *buf)
 			buf->mtu = ifr.ifr_mtu;
 #ifdef __LINUX
 		/* We get the sender's MAC address; on Linux
-	   	   via ioctl, on BSD by another system call.  */
+		   via ioctl, on BSD by another system call.  */
 		if (ioctl(fd, SIOCGIFHWADDR, &ifr) == 0)
-			memcpy(buf->src, ifr.ifr_ifru.
-				ifru_hwaddr.sa_data, 6);
+			memcpy(buf->src, ifr.ifr_ifru.ifru_hwaddr.sa_data, 6);
 #endif
 		/* Getting an IPv4 address and everything
-	   	   related to it.  */
+		   related to it.  */
 		if (ioctl(fd, SIOCGIFADDR, &ifr) == 0) {
 			memcpy(buf->srcip4, (ifr.ifr_addr.sa_data + 2), 4);
 			buf->support4 = 1;
@@ -482,13 +475,13 @@ inline static bool __generic_if_get(const char *if_name, if_data_t *buf)
 
 	if (getifaddrs(&ifap) != -1) {
 		for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-			if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_LINK &&
-				 	strcmp(ifa->ifa_name, if_name) == 0) {
+			if (ifa->ifa_addr &&
+			    ifa->ifa_addr->sa_family == AF_LINK &&
+			    strcmp(ifa->ifa_name, if_name) == 0) {
 				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 				u_char *mac = (u_char *)LLADDR(sdl);
 				memcpy(buf->src, mac, 6);
 			}
-			
 		}
 		freeifaddrs(ifap);
 	}
@@ -497,7 +490,8 @@ inline static bool __generic_if_get(const char *if_name, if_data_t *buf)
 	return 1;
 }
 
-bool __is_network_sendable(if_data_t *buf)
+bool
+__is_network_sendable(if_data_t *buf)
 {
 	if (!buf)
 		return 0;
@@ -531,7 +525,8 @@ bool __is_network_sendable(if_data_t *buf)
 	return 1;
 }
 
-bool if_get(const char *if_name, if_data_t *buf)
+bool
+if_get(const char *if_name, if_data_t *buf)
 {
 	if (if_name)
 		return __generic_if_get(if_name, buf);
@@ -544,7 +539,7 @@ bool if_get(const char *if_name, if_data_t *buf)
 	for (start = ifni; ifni->if_name; ifni++) {
 		memset(buf, 0, sizeof(if_data_t));
 		if (__generic_if_get(ifni->if_name, buf) &&
-				__is_network_sendable(buf)) {
+		    __is_network_sendable(buf)) {
 			if_freenameindex(start);
 			return 1;
 		}
@@ -554,145 +549,168 @@ bool if_get(const char *if_name, if_data_t *buf)
 	return 0;
 }
 
-void if_output(FILE *stream, if_data_t *ifd)
+void
+if_output(FILE *stream, if_data_t *ifd)
 {
 	if (ifd && stream) {
 		fprintf(stream, "Name:\t%s\n", ifd->name);
 		fprintf(stream, "Index:\t%d\n", ifd->index);
-		fprintf(stream, "Flags:\t<%s"
-			#if defined (IFF_LOWER_UP)
-				"%s"
-			#endif
-			#if defined (IFF_DORMANT)
-				"%s"
-			#endif
-			#if defined (IFF_ECHO)
-				"%s"
-			#endif
-			#if defined (IFF_SLAVE)
-				"%s"
-			#endif
-			#if defined (IFF_NOTRAILERS)
-				"%s"
-			#endif
-			#if defined (IFF_MASTER)
-				"%s"
-			#endif
-			#if defined (IFF_PORTSEL)
-				"%s"
-			#endif
-			#if defined (IFF_AUTOMEDIA)
-				"%s"
-			#endif
-			#if defined (IFF_DYNAMIC)
-				"%s"
-			#endif
-			#if defined (IFF_BROADCAST)
-				"%s"
-			#endif
-			#if defined (IFF_DEBUG)
-				"%s"
-			#endif
-			#if defined (IFF_LOOPBACK)
-				"%s"
-			#endif
-			#if defined (IFF_POINTOPOINT)
-				"%s"
-			#endif
-			#if defined (IFF_RUNNING)
-				"%s"
-			#endif
-			#if defined (IFF_NOARP)
-				"%s"
-			#endif
-			#if defined (IFF_PROMISC)
-				"%s"
-			#endif
-			#if defined (IFF_ALLMULTI)
-				"%s"
-			#endif
-			#if defined (IFF_MULTICAST)
-				"%s"
-			#endif
-			">\n",
-				(ifd->flags & IFF_UP) ? "UP;" : ""
+		fprintf(stream,
+		    "Flags:\t<%s"
+#if defined(IFF_LOWER_UP)
+		    "%s"
+#endif
+#if defined(IFF_DORMANT)
+		    "%s"
+#endif
+#if defined(IFF_ECHO)
+		    "%s"
+#endif
+#if defined(IFF_SLAVE)
+		    "%s"
+#endif
+#if defined(IFF_NOTRAILERS)
+		    "%s"
+#endif
+#if defined(IFF_MASTER)
+		    "%s"
+#endif
+#if defined(IFF_PORTSEL)
+		    "%s"
+#endif
+#if defined(IFF_AUTOMEDIA)
+		    "%s"
+#endif
+#if defined(IFF_DYNAMIC)
+		    "%s"
+#endif
+#if defined(IFF_BROADCAST)
+		    "%s"
+#endif
+#if defined(IFF_DEBUG)
+		    "%s"
+#endif
+#if defined(IFF_LOOPBACK)
+		    "%s"
+#endif
+#if defined(IFF_POINTOPOINT)
+		    "%s"
+#endif
+#if defined(IFF_RUNNING)
+		    "%s"
+#endif
+#if defined(IFF_NOARP)
+		    "%s"
+#endif
+#if defined(IFF_PROMISC)
+		    "%s"
+#endif
+#if defined(IFF_ALLMULTI)
+		    "%s"
+#endif
+#if defined(IFF_MULTICAST)
+		    "%s"
+#endif
+		    ">\n",
+		    (ifd->flags & IFF_UP) ? "UP;" : ""
 
-				#if defined (IFF_BROADCAST)
-					,(ifd->flags & IFF_BROADCAST) ? "BROADCAST;" : ""
-				#endif
-				#if defined (IFF_DEBUG)
-					,(ifd->flags & IFF_DEBUG) ? "DEBUG;" : ""
-				#endif
-				#if defined (IFF_LOOPBACK)
-					,(ifd->flags & IFF_LOOPBACK) ? "LOOPBACK;" : ""
-				#endif
-				#if defined (IFF_POINTOPOINT)
-					,(ifd->flags & IFF_POINTOPOINT) ? "POINTTOPOINT;" : ""
-				#endif
-				#if defined (IFF_RUNNING)
-					,(ifd->flags & IFF_RUNNING) ? "RUNNING;" : ""
-				#endif
-				#if defined (IFF_NOARP)
-					,(ifd->flags & IFF_NOARP) ? "NOARP;" : ""
-				#endif
-				#if defined (IFF_PROMISC)
-					,(ifd->flags & IFF_PROMISC) ? "PROMISC;" : ""
-				#endif
-				#if defined (IFF_ALLMULTI)
-					,(ifd->flags & IFF_ALLMULTI) ? "ALLMULTI;" : ""
-				#endif
-				#if defined (IFF_MULTICAST)
-					,(ifd->flags & IFF_MULTICAST) ? "MULTICAST;" : ""
-				#endif
-				#if defined (IFF_LOWER_UP)
-					,(ifd->flags & IFF_LOWER_UP) ? "LOWER_UP;" : ""
-				#endif
-				#if defined (IFF_DORMANT)
-					,(ifd->flags & IFF_DORMANT) ? "DORMANT;" : ""
-				#endif
-				#if defined (IFF_ECHO)
-					,(ifd->flags & IFF_ECHO) ? "ECHO;" : ""
-				#endif
-				#if defined (IFF_SLAVE)
-					,(ifd->flags & IFF_SLAVE)? "SLAVE;" : ""
-				#endif
-				#if defined (IFF_NOTRAILERS)
-					,(ifd->flags & IFF_NOTRAILERS) ? "NOTRAILERS;" : ""
-				#endif
-				#if defined (IFF_MASTER)
-					,(ifd->flags & IFF_MASTER) ? "MASTER;" : ""
-				#endif
-				#if defined (IFF_PORTSEL)
-					,(ifd->flags & IFF_PORTSEL) ? "PORTSEL;" : ""
-				#endif
-				#if defined (IFF_AUTOMEDIA)
-					,(ifd->flags & IFF_AUTOMEDIA) ? "AUTOMEDIA;" : ""
-				#endif
-				#if defined (IFF_DYNAMIC)
-					,(ifd->flags & IFF_DYNAMIC) ? "DYNAMIC;" : ""
-				#endif
+#if defined(IFF_BROADCAST)
+		    ,
+		    (ifd->flags & IFF_BROADCAST) ? "BROADCAST;" : ""
+#endif
+#if defined(IFF_DEBUG)
+		    ,
+		    (ifd->flags & IFF_DEBUG) ? "DEBUG;" : ""
+#endif
+#if defined(IFF_LOOPBACK)
+		    ,
+		    (ifd->flags & IFF_LOOPBACK) ? "LOOPBACK;" : ""
+#endif
+#if defined(IFF_POINTOPOINT)
+		    ,
+		    (ifd->flags & IFF_POINTOPOINT) ? "POINTTOPOINT;" : ""
+#endif
+#if defined(IFF_RUNNING)
+		    ,
+		    (ifd->flags & IFF_RUNNING) ? "RUNNING;" : ""
+#endif
+#if defined(IFF_NOARP)
+		    ,
+		    (ifd->flags & IFF_NOARP) ? "NOARP;" : ""
+#endif
+#if defined(IFF_PROMISC)
+		    ,
+		    (ifd->flags & IFF_PROMISC) ? "PROMISC;" : ""
+#endif
+#if defined(IFF_ALLMULTI)
+		    ,
+		    (ifd->flags & IFF_ALLMULTI) ? "ALLMULTI;" : ""
+#endif
+#if defined(IFF_MULTICAST)
+		    ,
+		    (ifd->flags & IFF_MULTICAST) ? "MULTICAST;" : ""
+#endif
+#if defined(IFF_LOWER_UP)
+		    ,
+		    (ifd->flags & IFF_LOWER_UP) ? "LOWER_UP;" : ""
+#endif
+#if defined(IFF_DORMANT)
+		    ,
+		    (ifd->flags & IFF_DORMANT) ? "DORMANT;" : ""
+#endif
+#if defined(IFF_ECHO)
+		    ,
+		    (ifd->flags & IFF_ECHO) ? "ECHO;" : ""
+#endif
+#if defined(IFF_SLAVE)
+		    ,
+		    (ifd->flags & IFF_SLAVE) ? "SLAVE;" : ""
+#endif
+#if defined(IFF_NOTRAILERS)
+		    ,
+		    (ifd->flags & IFF_NOTRAILERS) ? "NOTRAILERS;" : ""
+#endif
+#if defined(IFF_MASTER)
+		    ,
+		    (ifd->flags & IFF_MASTER) ? "MASTER;" : ""
+#endif
+#if defined(IFF_PORTSEL)
+		    ,
+		    (ifd->flags & IFF_PORTSEL) ? "PORTSEL;" : ""
+#endif
+#if defined(IFF_AUTOMEDIA)
+		    ,
+		    (ifd->flags & IFF_AUTOMEDIA) ? "AUTOMEDIA;" : ""
+#endif
+#if defined(IFF_DYNAMIC)
+		    ,
+		    (ifd->flags & IFF_DYNAMIC) ? "DYNAMIC;" : ""
+#endif
 		);
 		fprintf(stream, "MTU:\t%d\n", ifd->mtu);
 
 		fprintf(stream, "MAC source:\t%02x:%02x:%02x:%02x:%02x:%02x\n",
-			ifd->src[0], ifd->src[1], ifd->src[2], ifd->src[3],
-			ifd->src[4], ifd->src[5]);
+		    ifd->src[0], ifd->src[1], ifd->src[2], ifd->src[3],
+		    ifd->src[4], ifd->src[5]);
 
 		fprintf(stream, "MAC dest:\t%02x:%02x:%02x:%02x:%02x:%02x\n",
-			ifd->dst[0], ifd->dst[1], ifd->dst[2], ifd->dst[3],
-			ifd->dst[4], ifd->dst[5]);
+		    ifd->dst[0], ifd->dst[1], ifd->dst[2], ifd->dst[3],
+		    ifd->dst[4], ifd->dst[5]);
 
-		fprintf(stream, "IPv4 source:\t%hhu.%hhu.%hhu.%hhu\n", ifd->srcip4[0],
-			ifd->srcip4[1], ifd->srcip4[2], ifd->srcip4[3]);
+		fprintf(stream, "IPv4 source:\t%hhu.%hhu.%hhu.%hhu\n",
+		    ifd->srcip4[0], ifd->srcip4[1], ifd->srcip4[2],
+		    ifd->srcip4[3]);
 
 		char ip6[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET6, ifd->srcip6, ip6, sizeof(ip6));
 		fprintf(stream, "IPv6 source:\t%s\n", ip6);
 
-		fprintf(stream, "IPv4 gateway:\t%hhu.%hhu.%hhu.%hhu\n", ifd->gate4[0],
-			ifd->gate4[1], ifd->gate4[2], ifd->gate4[3]);
+		fprintf(stream, "IPv4 gateway:\t%hhu.%hhu.%hhu.%hhu\n",
+		    ifd->gate4[0], ifd->gate4[1], ifd->gate4[2], ifd->gate4[3]);
 
-		fprintf(stream, "Support IPv4:\t%s\n", (ifd->support4) ? "yes" : "no");
-		fprintf(stream, "Support IPv6:\t%s\n", (ifd->support6) ? "yes" : "no");
+		fprintf(stream, "Support IPv4:\t%s\n",
+		    (ifd->support4) ? "yes" : "no");
+		fprintf(stream, "Support IPv6:\t%s\n",
+		    (ifd->support6) ? "yes" : "no");
 	}
 }

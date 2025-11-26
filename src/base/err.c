@@ -21,12 +21,13 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
-*/
+ */
 
 #include "../../include/base.h"
 
 #ifdef __LINUX
-NORETURN void err(int eval, const char *fmt, ...)
+NORETURN void
+err(int eval, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -39,7 +40,8 @@ NORETURN void err(int eval, const char *fmt, ...)
 	exit(eval);
 }
 
-NORETURN void errx(int eval, const char *fmt, ...)
+NORETURN void
+errx(int eval, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -52,8 +54,8 @@ NORETURN void errx(int eval, const char *fmt, ...)
 	exit(eval);
 }
 
-
-void warn(const char *fmt, ...)
+void
+warn(const char *fmt, ...)
 {
 	int save = errno;
 	va_list ap;
@@ -69,8 +71,8 @@ void warn(const char *fmt, ...)
 	errno = save;
 }
 
-
-void warnx(const char *fmt, ...)
+void
+warnx(const char *fmt, ...)
 {
 	int save = errno;
 	va_list ap;

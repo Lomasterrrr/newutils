@@ -21,12 +21,12 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
-*/
+ */
 
 #include "../../include/base.h"
 
-bool u_numarg(const char *nptr, u_long min,
-		u_long max, void *buf, size_t n)
+bool
+u_numarg(const char *nptr, u_long min, u_long max, void *buf, size_t n)
 {
 	char *endptr;
 	u_long val;
@@ -40,7 +40,7 @@ bool u_numarg(const char *nptr, u_long min,
 
 	errno = 0;
 	val = strtoull(nptr, &endptr, 10);
-	if (errno != 0) 
+	if (errno != 0)
 		return 0;
 	if (endptr == nptr)
 		return 0;
@@ -52,27 +52,27 @@ bool u_numarg(const char *nptr, u_long min,
 		return 0;
 
 	switch (n) {
-		case sizeof(u_long):
-			*(u_long *)buf = (u_long)val;
-			break;
-		case sizeof(u_int):
-			*(u_int *)buf = (u_int)val;
-			break;
-		case sizeof(u_short):
-			*(u_short *)buf = (u_short)val;
-			break;
-		case sizeof(u_char):
-			*(u_char *)buf = (u_char)val;
-			break;
-		default:
-			return 0;
+	case sizeof(u_long):
+		*(u_long *)buf = (u_long)val;
+		break;
+	case sizeof(u_int):
+		*(u_int *)buf = (u_int)val;
+		break;
+	case sizeof(u_short):
+		*(u_short *)buf = (u_short)val;
+		break;
+	case sizeof(u_char):
+		*(u_char *)buf = (u_char)val;
+		break;
+	default:
+		return 0;
 	}
 
 	return 1;
 }
 
-bool numarg(const char *nptr, long long min,
-		long long max, void *buf, size_t n)
+bool
+numarg(const char *nptr, long long min, long long max, void *buf, size_t n)
 {
 	long long val;
 	char *endptr;
@@ -96,30 +96,29 @@ bool numarg(const char *nptr, long long min,
 		return 0;
 
 	switch (n) {
-		case sizeof(long long):
-			*(long long *)buf =
-				(long long)val;
-			break;
-		case sizeof(int):
-			*(int *)buf = (int)val;
-			break;
-		case sizeof(short):
-			*(short *)buf = (short)val;
-			break;
-		case sizeof(char):
-			*(char *)buf = (char)val;
-			break;
-		default:
-			return 0;
+	case sizeof(long long):
+		*(long long *)buf = (long long)val;
+		break;
+	case sizeof(int):
+		*(int *)buf = (int)val;
+		break;
+	case sizeof(short):
+		*(short *)buf = (short)val;
+		break;
+	case sizeof(char):
+		*(char *)buf = (char)val;
+		break;
+	default:
+		return 0;
 	}
 
 	return 1;
 }
 
-const char *timefmt(long long ns, char *buf, size_t n)
+const char *
+timefmt(long long ns, char *buf, size_t n)
 {
-	const char *prefixes[] = {"ns", "μs", "ms", "sec",
-				 "min", "h", "d"};
+	const char *prefixes[] = { "ns", "μs", "ms", "sec", "min", "h", "d" };
 	double val = (double)ns;
 	int prfx = 0;
 
@@ -147,17 +146,18 @@ const char *timefmt(long long ns, char *buf, size_t n)
 	return buf;
 }
 
-void sleepns(long long ns)
+void
+sleepns(long long ns)
 {
-	struct timespec	rem, req =
-		{.tv_sec = (ns / 1000000000),
-		.tv_nsec = (ns % 1000000000)};
+	struct timespec rem,
+	    req = { .tv_sec = (ns / 1000000000), .tv_nsec = (ns % 1000000000) };
 	nanosleep(&req, &rem);
 }
 
-long long strtons(const char *ptr)
+long long
+strtons(const char *ptr)
 {
-	char unit[3] = {0};
+	char unit[3] = { 0 };
 	long long val;
 	char *endptr;
 	size_t n;
@@ -191,38 +191,34 @@ long long strtons(const char *ptr)
 	return val;
 }
 
-void ip_btom(int af, int bits, u_char *buf)
+void
+ip_btom(int af, int bits, u_char *buf)
 {
 	u_int tmp;
 	int n, h;
 
 	switch (af) {
-		case AF_INET:
-			tmp = (bits) ?
-				htonl(0xffffffff <<
-				(32 - bits)) : 0;
-			memcpy(buf, &tmp, 4);
-			break;
-		case AF_INET6:
-			n = bits / 8;
-			h = bits % 8;
+	case AF_INET:
+		tmp = (bits) ? htonl(0xffffffff << (32 - bits)) : 0;
+		memcpy(buf, &tmp, 4);
+		break;
+	case AF_INET6:
+		n = bits / 8;
+		h = bits % 8;
 
-			if (n > 0)
-				memset(buf, 0xff, (u_long)n);
-			if (n < 16) {
-				buf[n] = (u_char)(h) ?
-					(u_char)(0xff <<
-					(8 - h)) : 0x00;
-				if (n + 1 < 16)
-					memset(buf + n + 1,
-						0x00, (u_long)
-						(16 - n - 1));
-			}
-			break;
+		if (n > 0)
+			memset(buf, 0xff, (u_long)n);
+		if (n < 16) {
+			buf[n] = (u_char)(h) ? (u_char)(0xff << (8 - h)) : 0x00;
+			if (n + 1 < 16)
+				memset(buf + n + 1, 0x00, (u_long)(16 - n - 1));
+		}
+		break;
 	}
 }
 
-void ip_net(u_char *p, u_char *mask, u_char *buf)
+void
+ip_net(u_char *p, u_char *mask, u_char *buf)
 {
 	int i, j;
 	for (i = 0; i <= 15; i++)
@@ -231,16 +227,15 @@ void ip_net(u_char *p, u_char *mask, u_char *buf)
 				buf[i] |= (p[i] & (1 << j));
 }
 
-bool resolveipv4(const char *hostname, struct in_addr *buf)
+bool
+resolveipv4(const char *hostname, struct in_addr *buf)
 {
-	struct addrinfo hints = {0}, *res;
+	struct addrinfo hints = { 0 }, *res;
 
 	hints.ai_family = AF_INET;
 	if (getaddrinfo(hostname, NULL, &hints, &res) == 0) {
-		memcpy(buf, &((struct sockaddr_in *)
-			res->ai_addr)->sin_addr, 4);
+		memcpy(buf, &((struct sockaddr_in *)res->ai_addr)->sin_addr, 4);
 		return 1;
 	}
 	return 0;
-	
 }
