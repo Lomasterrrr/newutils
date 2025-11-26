@@ -400,6 +400,7 @@ inline static void loop(struct in_addr *ip)
 		 * (pinger), receiving (dlt_recv_cb), displaying
 		 * the received data (pr_pack), delay (sleepns).
 		 */
+
 		struct timeval ts_s, ts_e;
 		u_char buf[2048] = {0};
 		ssize_t n;
@@ -413,6 +414,7 @@ inline static void loop(struct in_addr *ip)
 			 * the same; although it is hard to believe
 			 * in change.
 			 */
+
 			lmac.__ether_octet[0] = '\n';
 
 			if ((eflag || Vflag) && !lflag)
