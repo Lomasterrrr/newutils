@@ -59,6 +59,14 @@ static long long tmax = 0;
 static long long tsum = 0;
 static long long interval = 1000 * 1000000LL; /* delay/interval */
 
+/*
+ *	U S A G E ()
+ *
+ * Takes a vector of arguments
+ * (argv) and prints help about
+ * the ARPING options; also,
+ * terminates the program.
+ */
 inline static void
 usage(char **av)
 {
@@ -93,6 +101,17 @@ usage(char **av)
 	exit(0);
 }
 
+/*
+ *	C A L L B A C K ()
+ *
+ * Essentially, this is a packet filter
+ * that is passed to the receiving function
+ * so it can receive the desired packet.
+ * If the packet is ours, it returns 1,
+ * 0.  It also checks the packet's ARP
+ * fields and, if necessary, writes the
+ * received MAC address to <lmac>.
+ */
 inline static bool
 callback(void *in, size_t n, void *arg)
 {
@@ -106,6 +125,8 @@ callback(void *in, size_t n, void *arg)
 		return 0;
 	if (tflag && (memcmp(buf + 6, &topt, 6) != 0))
 		return 0;
+
+	/* ARP operation code.  */
 	switch (ntohs(*(u_short *)(buf + 20))) {
 	case 1:
 	case 2:
@@ -175,6 +196,14 @@ callback(void *in, size_t n, void *arg)
 	return 1;
 }
 
+/*
+ *	S T A T S ()
+ *
+ * Takes the IP address of the
+ * target in <target>, and prints
+ * the current ARPING statistics
+ * according to the options.
+ */
 inline static void
 stats(struct in_addr *target)
 {
@@ -214,6 +243,14 @@ end:
 	prstats = 1;
 }
 
+/*
+ *	F I N I S H ()
+ *
+ * Should be called when the program
+ * terminates; prints the last
+ * target's statistics if none were
+ * printed, and closes the socket.
+ */
 inline static NORETURN void
 finish(int sig)
 {
@@ -225,6 +262,14 @@ finish(int sig)
 	exit(0);
 }
 
+/*
+ *	T V R T T ()
+ *
+ * Calculates the corrected
+ * response time using tvsub(),
+ * updates statistics, and
+ * returns the response time.
+ */
 inline static long long
 tvrtt(struct timeval *ts_s, struct timeval *ts_e)
 {
@@ -242,6 +287,13 @@ tvrtt(struct timeval *ts_s, struct timeval *ts_e)
 	return rtt;
 }
 
+/*
+ *	P R _ P A C K ()
+ *
+ * Prints information about the ARP
+ * packet according to the options
+ * (i. e. the selected style).
+ */
 inline static void
 pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 {
@@ -343,6 +395,13 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 	}
 }
 
+/*
+ *	P I N G E R ()
+ *
+ * Creates a package in <outpack>
+ * according to the options, sends
+ * it, and updates statistics.
+ */
 inline static void
 pinger(struct in_addr *target)
 {
@@ -383,6 +442,15 @@ pinger(struct in_addr *target)
 	++ntransmitted;
 }
 
+/*
+ *	L O O P ()
+ *
+ * The main function of the
+ * code; receives the target's
+ * IP address and arpings it;
+ * before doing this, of course,
+ * it resets the statistics.
+ */
 inline static void
 loop(struct in_addr *ip)
 {
@@ -451,6 +519,14 @@ loop(struct in_addr *ip)
 	stats(ip);
 }
 
+/*
+ *	I F _ S E T U P ()
+ *
+ * Gets the network interface and
+ * its associated data, also modifies
+ * them according to the options,
+ * and opens the socket.
+ */
 inline static void
 if_setup(void)
 {
@@ -478,6 +554,9 @@ if_setup(void)
 		errx(1, "failed open socket");
 }
 
+/*
+ *	A R P I N G
+ */
 int
 main(int c, char **av)
 {
