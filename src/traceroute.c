@@ -845,7 +845,7 @@ main(int c, char **av)
 			break;
 		case 'H': {
 			u_char *hextmp = NULL;
-			if ((hextmp = hex_ahtoh(optarg, &payloadlen)))
+			if (!(hextmp = hex_ahtoh(optarg, &payloadlen)))
 				errx(1, "invalid hex string specification");
 			if (!(payload = memcpy(calloc(1, payloadlen), hextmp,
 				  payloadlen)))
