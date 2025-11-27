@@ -51,6 +51,7 @@ static u_short lid = 0; /* last ip id */
 static bool Aflag = 0;
 static bool Pflag = 0;
 static bool pflag = 0;
+static size_t unreachable = 0;
 static int Popt = 0;
 static int dstport = 32768 + 666;
 static bool _6flag = 0;
@@ -145,15 +146,21 @@ callback(void *in, size_t n, void *arg)
 		 * a DEST UNREACHED message indicating that the
 		 * protocol or port is unavailable.  */
 		if (buf[34] == 3) {
+			if (memcmp((buf + 54), ifd.srcip4, 4) != 0)
+				return 0;
+			if (memcmp((buf + 58), &target->ip.v4, 4) != 0)
+				return 0;
+			if (buf[35] != 3 && buf[35] != 2) {
+				++unreachable;
+				return 0;
+			}
 			if (ntohs((*(u_short *)(buf + 42 + 4))) != lid)
 				return 0;
-
 			if (buf[35] == 3 || buf[35] == 2) {
 				memcpy(&source.ip.v4, (buf + 22), 4);
 				reached = 1; /* AEEEE */
 				break;
 			}
-
 		}
 		/* Or coming from ICMP_ECHO_REPLY, but only when the
 		 * ID and seq match.  */
@@ -166,8 +173,8 @@ callback(void *in, size_t n, void *arg)
 			reached = 1; /* AEEEE */
 			break;
 		}
-
-		if (buf[34] != /* Time Exceed*/ 11)
+		if (buf[34] != /* Time Exceed */ 11 &&
+		    buf[35] == /* Intrans */ 0)
 			return 0;
 		if (memcmp((buf + 30), ifd.srcip4, 4) != 0) /* ip dst */
 			return 0;
@@ -190,7 +197,7 @@ callback(void *in, size_t n, void *arg)
 			const u_int *inner_ipv6_hdr = (const u_int *)(buf + 62);
 			if ((ntohl(inner_ipv6_hdr[0]) & 0x000FFFFF) != lid)
 				return 0;
-			if (buf[35] == 4) {
+			if (buf[55] == 4) {
 				memcpy(source.ip.v6.s6_addr, (buf + 22), 16);
 				reached = 1; /* AEEEE */
 				break;
@@ -205,7 +212,8 @@ callback(void *in, size_t n, void *arg)
 			break;
 		}
 
-		if (buf[54] != /* Time Exceed */ 3)
+		if (buf[54] != /* Time Exceed */ 3 &&
+		    buf[55] == /* Intrans */ 0)
 			return 0;
 		if (memcmp((buf + 38), ifd.srcip6, 16) != 0) /* ip dst */
 			return 0;
@@ -607,6 +615,10 @@ loop(ipaddr_t *ip)
 	ttl = first;
 	mttl = total - (ttl - 1);
 
+	/* We loop through all the TTLs and send ntry probes on each
+	 * one: we send the probe (sendprobe), receive the response
+	 * (dlt_recv_cb), and output the results. If the host is
+	 * reached or unavailable, we terminate.*/
 	for (; mttl; mttl--) {
 		struct timeval ts_s, ts_e;
 		u_char buf[65535] = { 0 };
@@ -614,8 +626,9 @@ loop(ipaddr_t *ip)
 		bool okttl = 0;
 		ssize_t n;
 
-		printf("%2d  ", ttl);
 		memset(rtts, 0, (ntry * sizeof(long long)));
+		printf("%2d  ", ttl);
+		unreachable = 0;
 		curhop = ttl;
 
 		for (hopid = 1; hopid <= ntry; hopid++) {
@@ -623,6 +636,9 @@ loop(ipaddr_t *ip)
 			sendprobe(ip, method, payload, (u_int)payloadlen);
 			if ((n = dlt_recv_cb(dlt, buf, sizeof(buf), callback,
 				 (void *)ip, wait, &ts_s, &ts_e)) == -1) {
+				/* If the -A flag is set, then we try all
+				 * methods until we get an answer, or until
+				 * they run out.  */
 				if (Aflag) {
 					switch (method) {
 					case IPPROTO_ICMP:
@@ -650,16 +666,24 @@ loop(ipaddr_t *ip)
 			} else {
 				++nreceived;
 
+				/* We save our response time in a buffer.  */
 				rtts[hopid - 1] = tvrtt(&ts_s, &ts_e);
+
+				/* We check whether the response came from the
+				 * new host, or whether there was one already.
+				 */
 				if (memcmp(&source, &tmpip, sizeof(ipaddr_t))) {
 					printf("%s %s", ipaddr_ntoa(&source),
 					    resolve_dns(&source));
 					tmpip = source;
 				}
+
 				okttl = 1;
 			}
 		}
 
+		/* We display the response time if at least one attempt
+		 * was successful. */
 		if (okttl) {
 			printf("    ");
 			for (n = 1; n <= ntry; n++)
@@ -669,6 +693,22 @@ loop(ipaddr_t *ip)
 		}
 
 		putchar('\n');
+
+		/*
+		 * If 10% all hosts send us an error, and one that
+		 * doesn't indicate availability, then there's no
+		 * point in continuing.
+		 */
+		n = (ntry * 10 + 99) / 100;
+		n = (n < 1) ? 1 : n;
+
+		if (unreachable && unreachable >= n) {
+			fprintf(stderr, "Host is down (%zu unreachable)\n",
+			    unreachable);
+			break;
+		}
+
+		/* We have achieved our target.  */
 		if (reached)
 			break;
 
@@ -706,6 +746,11 @@ if_setup(void)
 		memcpy(ifd.srcip6, _6opt.s6_addr, 16);
 	if (vflag)
 		if_output(stderr, &ifd);
+	if (payloadlen > (size_t)ifd.mtu)
+		errx(1,
+		    "your mtu is (%d), your length"
+		    " data is \"%zu\"",
+		    ifd.mtu, payloadlen);
 
 	if (!(dlt = dlt_open(ifd.name)))
 		errx(1, "failed open socket");

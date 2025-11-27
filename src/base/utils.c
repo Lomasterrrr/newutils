@@ -230,11 +230,22 @@ ip_net(u_char *p, u_char *mask, u_char *buf)
 bool
 resolveipv4(const char *hostname, struct in_addr *buf)
 {
-	struct addrinfo hints = { 0 }, *res;
+	struct addrinfo hints = { .ai_family = AF_INET,
+		.ai_socktype = SOCK_STREAM },
+			*res, *p;
+	size_t n = 0;
 
-	hints.ai_family = AF_INET;
 	if (getaddrinfo(hostname, NULL, &hints, &res) == 0) {
+		for (p = res; p; p = p->ai_next)
+			if (p->ai_family == AF_INET)
+				n++;
+
 		memcpy(buf, &((struct sockaddr_in *)res->ai_addr)->sin_addr, 4);
+		if (n > 1)
+			warnx("%s has %zu ipv4 addresses; using %s", hostname,
+			    n, inet_ntoa(*buf));
+
+		freeaddrinfo(res);
 		return 1;
 	}
 	return 0;
