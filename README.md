@@ -1,10 +1,22 @@
-newutils -- is a set of network utilities for Linux or BSD; they are a "new" version of my
+**newutils** -- is a set of network utilities for Linux or BSD; they are a "new" version of my
 old "rawutils".  Unlike the latter, these support BSD.
 
 Current set of available:
-	i. arping
+```
+i. arping
+ii. traceroute
+```
 
+### Build
 For compile use:
-	./BUILD
+```
+./BUILD
+```
 For cleaning:
-	./BUILD clean
+```
+./BUILD clean
+```
+For clang-format19:
+```
+./BUILD format
+```
