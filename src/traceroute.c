@@ -156,11 +156,10 @@ callback(void *in, size_t n, void *arg)
 			}
 			if (ntohs((*(u_short *)(buf + 42 + 4))) != lid)
 				return 0;
-			if (buf[35] == 3 || buf[35] == 2) {
-				memcpy(&source.ip.v4, (buf + 22), 4);
-				reached = 1; /* AEEEE */
-				break;
-			}
+
+			memcpy(&source.ip.v4, (buf + 22), 4);
+			reached = 1; /* AEEEE */
+			break;
 		}
 		/* Or coming from ICMP_ECHO_REPLY, but only when the
 		 * ID and seq match.  */
