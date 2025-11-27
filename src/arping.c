@@ -60,12 +60,11 @@ static long long tsum = 0;
 static long long interval = 1000 * 1000000LL; /* delay/interval */
 
 /*
- *	U S A G E ()
+ *		U S A G E
  *
- * Takes a vector of arguments
- * (argv) and prints help about
- * the ARPING options; also,
- * terminates the program.
+ * Takes a vector of arguments (argv) and prints
+ * help about the ARPING options; also, terminates
+ * the program.
  */
 inline static void
 usage(char **av)
@@ -102,15 +101,13 @@ usage(char **av)
 }
 
 /*
- *	C A L L B A C K ()
+ *		C A L L B A C K
  *
- * Essentially, this is a packet filter
- * that is passed to the receiving function
- * so it can receive the desired packet.
- * If the packet is ours, it returns 1,
- * 0.  It also checks the packet's ARP
- * fields and, if necessary, writes the
- * received MAC address to <lmac>.
+ * Essentially, this is a packet filter that is passed
+ * to the receiving function so it can receive the
+ * desired packet.  If the packet is ours, it returns 1,
+ * 0.  It also checks the packet's ARP fields and, if
+ * necessary, writes the received MAC address to <lmac>.
  */
 inline static bool
 callback(void *in, size_t n, void *arg)
@@ -197,11 +194,10 @@ callback(void *in, size_t n, void *arg)
 }
 
 /*
- *	S T A T S ()
+ *		S T A T S
  *
- * Takes the IP address of the
- * target in <target>, and prints
- * the current ARPING statistics
+ * Takes the IP address of the target in <target>,
+ * and prints the current ARPING statistics
  * according to the options.
  */
 inline static void
@@ -244,12 +240,11 @@ end:
 }
 
 /*
- *	F I N I S H ()
+ *		F I N I S H
  *
- * Should be called when the program
- * terminates; prints the last
- * target's statistics if none were
- * printed, and closes the socket.
+ * Should be called when the program terminates;
+ * prints the last target's statistics if none
+ * were printed, and closes the socket.
  */
 inline static NORETURN void
 finish(int sig)
@@ -263,12 +258,11 @@ finish(int sig)
 }
 
 /*
- *	T V R T T ()
+ *		T V R T T
  *
- * Calculates the corrected
- * response time using tvsub(),
- * updates statistics, and
- * returns the response time.
+ * Calculates the corrected response time using
+ * tvsub(), updates statistics, and returns the
+ * response time.
  */
 inline static long long
 tvrtt(struct timeval *ts_s, struct timeval *ts_e)
@@ -288,11 +282,11 @@ tvrtt(struct timeval *ts_s, struct timeval *ts_e)
 }
 
 /*
- *	P R _ P A C K ()
+ *		P R _ P A C K
  *
- * Prints information about the ARP
- * packet according to the options
- * (i. e. the selected style).
+ * Prints information about the ARP packet according
+ * to the options (i. e. the selected style).  Styles:
+ * wireshark(tcpdump), verbose, cisco, default.
  */
 inline static void
 pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
@@ -396,11 +390,10 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 }
 
 /*
- *	P I N G E R ()
+ *		P I N G E R
  *
- * Creates a package in <outpack>
- * according to the options, sends
- * it, and updates statistics.
+ * Creates a package in <outpack> according to
+ * the options, sends it, and updates statistics.
  */
 inline static void
 pinger(struct in_addr *target)
@@ -443,13 +436,12 @@ pinger(struct in_addr *target)
 }
 
 /*
- *	L O O P ()
+ *		L O O P
  *
- * The main function of the
- * code; receives the target's
- * IP address and arpings it;
- * before doing this, of course,
- * it resets the statistics.
+ * The main function of the code; receives the
+ * target's IP address and arpings it; before
+ * doing this, of course, it resets the
+ * statistics.
  */
 inline static void
 loop(struct in_addr *ip)
@@ -520,12 +512,11 @@ loop(struct in_addr *ip)
 }
 
 /*
- *	I F _ S E T U P ()
+ *		I F _ S E T U P
  *
- * Gets the network interface and
- * its associated data, also modifies
- * them according to the options,
- * and opens the socket.
+ * Gets the network interface and its associated
+ * data, also modifies them according to the
+ * options, and opens the socket.
  */
 inline static void
 if_setup(void)
@@ -555,7 +546,7 @@ if_setup(void)
 }
 
 /*
- *	A R P I N G
+ *		A R P I N G
  */
 int
 main(int c, char **av)
