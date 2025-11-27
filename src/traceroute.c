@@ -25,8 +25,8 @@
 
 #include "../include/base.h"
 
-static dlt_t *dlt = NULL;		 /* socket */
-static long long interval = 0;		 /* delay/interval */
+static dlt_t *dlt = NULL;      /* socket */
+static long long interval = 0; /* delay/interval */
 static bool sflag = 0;
 static bool vflag = 0;
 static struct in_addr sopt = { 0 };
@@ -34,14 +34,14 @@ static bool Sflag = 0;
 static struct ether_addr Sopt = { 0 };
 static bool Iflag = 0;
 static char *Iopt = NULL;
-static bool prstats = 0;       /* print last stats? */
+static bool prstats = 0; /* print last stats? */
 static size_t ntransmitted = 0;
 static size_t nreceived = 0;
 static size_t ntry = 3;
 static long long tmin = 0;
 static long long wait = 150 * 1000000LL; /* timeout */
 static long long tmax = 0;
-static if_data_t ifd = { 0 };		 /* interface data */
+static if_data_t ifd = { 0 }; /* interface data */
 static long long tsum = 0;
 static int method = IPPROTO_ICMP;
 long long *rtts = NULL;
@@ -67,7 +67,6 @@ static int oopt = 0;
 static size_t hopid = 0;
 u_char *payload;
 size_t payloadlen;
-
 
 /*
  *		U S A G E
@@ -108,8 +107,11 @@ usage(char **av)
 	fputs("  -U  use only udp packets\n", stderr);
 	fputs("  -L  use only udp-lite packets\n", stderr);
 	fputs("  -C  use only sctp-cookie packets\n", stderr);
-	fputs("", stderr);
 	fputs("  -h  show this help message and exit\n", stderr);
+	fputs("\nExamples\n", stderr);
+	fprintf(stderr, "  %s -A google.com\n", av[0]);
+	fprintf(stderr, "  %s -n10 -w 50ms 5.255.255.77\n", av[0]);
+	fprintf(stderr, "  %s -n10 -A github.com 5.255.255.77\n", av[0]);
 	exit(0);
 }
 
@@ -119,7 +121,7 @@ usage(char **av)
  * Essentially, this is a packet filter that is passed
  * to the receiving function so it can receive the
  * desired packet.  If the packet is ours, it returns 1,
- * or 0. 
+ * or 0.
  */
 inline static bool
 callback(void *in, size_t n, void *arg)
@@ -798,7 +800,7 @@ main(int c, char **av)
 				errx(1, "invalid number \"%s\"", optarg);
 			break;
 		case 'H': {
-			u_char *hextmp;
+			u_char *hextmp = NULL;
 			if ((hextmp = hex_ahtoh(optarg, &payloadlen)))
 				errx(1, "invalid hex string specification");
 			if (!(payload = memcpy(calloc(1, payloadlen), hextmp,
