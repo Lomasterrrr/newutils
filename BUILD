@@ -16,6 +16,7 @@ case "$1" in
 	cc $CFLAGS -c src/base/*.c
 	cc $CFLAGS -c src/*.c
 	cc $CFLAGS err.o if.o utils.o arping.o -o arping
+	cc $CFLAGS cksum.o random.o err.o if.o utils.o traceroute.o -o traceroute
         ;;
 esac
 

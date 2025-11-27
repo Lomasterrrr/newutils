@@ -26,6 +26,7 @@
 #include "../include/base.h"
 
 static bool Iflag = 0;
+static char *Iopt = NULL;
 static bool _0flag = 0;
 static long long wait = 1000 * 1000000LL; /* timeout */
 static dlt_t *dlt = NULL;		  /* socket */
@@ -525,10 +526,10 @@ if_setup(void)
 		if (!if_get(NULL, &ifd))
 			errx(1, "no suitable devices found");
 	} else {
-		if (!if_get(optarg, &ifd))
-			errx(1, "device \"%s\" not found", optarg);
+		if (!if_get(Iopt, &ifd))
+			errx(1, "device \"%s\" not found", Iopt);
 		if (!__is_network_sendable(&ifd))
-			errx(1, "device \"%s\" doesn't fit", optarg);
+			errx(1, "device \"%s\" doesn't fit", Iopt);
 	}
 	if (!ifd.support4)
 		errx(1, "device does not support ipv4");
@@ -583,6 +584,7 @@ main(int c, char **av)
 			break;
 		case 'I':
 			Iflag = 1;
+			Iopt = optarg;
 			break;
 		case 'l':
 			lflag = 1;

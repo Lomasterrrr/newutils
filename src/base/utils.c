@@ -249,3 +249,87 @@ tvsub(struct timeval *out, struct timeval *in)
 	}
 	out->tv_sec -= in->tv_sec;
 }
+
+const char *
+ipaddr_ntoa(ipaddr_t *pin)
+{
+	if (pin) {
+		static char tmp[INET6_ADDRSTRLEN];
+		memset(tmp, 0, sizeof(tmp));
+		return inet_ntop(pin->af,
+		    ((pin->af == AF_INET) ? (void *)&pin->ip.v4 :
+					    (void *)&pin->ip.v6),
+		    tmp, sizeof(tmp));
+	}
+	return NULL;
+}
+
+bool
+ipaddr_pton(const char *cp, ipaddr_t *dst)
+{
+	if (cp && dst) {
+		if (inet_pton(AF_INET, cp, &dst->ip.v4) == 1) {
+			dst->af = AF_INET;
+			return 1;
+		} else if (inet_pton(AF_INET6, cp, &dst->ip.v6) == 1) {
+			dst->af = AF_INET6;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void
+p128(__uint128_t v)
+{
+	if (v > 9)
+		p128(v / 10);
+	putchar((u_char)(v % 10 + '0'));
+}
+
+/* thanks nmap */
+u_char *
+hex_ahtoh(char *txt, size_t *hexlen)
+{
+	char auxbuff[1024] = { 0 };
+	static u_char dst[16384];
+	size_t dstlen = 16384;
+	char *start = NULL;
+	char twobytes[3];
+	u_int i = 0, j = 0;
+
+	if (!txt || !hexlen)
+		return NULL;
+	if (strlen(txt) == 0)
+		return NULL;
+
+	memset(dst, 0, sizeof(dst));
+	if (!strncmp("0x", txt, 2)) {
+		if (strlen(txt) == 2)
+			return NULL;
+		start = txt + 2;
+	} else if (!strncmp("\\x", txt, 2)) {
+		if (strlen(txt) == 2)
+			return NULL;
+		for (i = 0; i < strlen(txt) && j < 1023; i++)
+			if (txt[i] != '\\' && txt[i] != 'x' && txt[i] != 'X')
+				auxbuff[j++] = txt[i];
+		auxbuff[j] = '\0';
+		start = auxbuff;
+	} else
+		start = txt;
+	for (i = 0; i < strlen(start); i++)
+		if (!isxdigit(start[i]))
+			return NULL;
+	if (strlen(start) % 2 != 0)
+		return NULL;
+	for (i = 0, j = 0; j < dstlen && i < strlen(start) - 1; i += 2) {
+		twobytes[0] = start[i];
+		twobytes[1] = start[i + 1];
+		twobytes[2] = '\0';
+		dst[j++] = (u_char)strtol(twobytes, NULL, 16);
+	}
+
+	*hexlen = j;
+	return dst;
+}

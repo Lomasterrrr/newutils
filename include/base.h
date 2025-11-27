@@ -28,6 +28,17 @@
 
 #include "include.h"
 
+/* For universal.  */
+typedef struct __ipaddr {
+	int af;
+	union {
+		struct in_addr  v4;
+		struct in6_addr v6;
+	} ip;
+} ipaddr_t;
+const char *ipaddr_ntoa(ipaddr_t *pin);
+bool ipaddr_pton(const char *cp, ipaddr_t *dst);
+
 /* Noreturn processing.  */
 #if defined(__cplusplus)
 	#define NORETURN [[noreturn]]
@@ -125,6 +136,10 @@ u_short	random_u16(void);	/* Random 16 bit.  */
 u_char	random_u8(void);	/* Random 8 bit.  */
 u_int	random_ipv4(void);	/* Random IPv4 address.  */
 
+/* Random string.  */
+#define DEFAULT_DICTIONARY "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+char	*randomstr(size_t len, const char *dict);
+
 /* Accuracy methods.  */
 u_long dev_urandom(void);	/* Use /dev/(u?)random.  */
 
@@ -172,5 +187,11 @@ bool resolveipv4(const char *hostname, struct in_addr *buf);
 
 /* Timeval sub; out = out - in.  */
 void tvsub(struct timeval *out, struct timeval *in);
+
+/* Print __uint128_t.  */
+void p128(__uint128_t v);
+
+/* Ascii hex to real hex.  */
+u_char *hex_ahtoh(char *txt, size_t *hexlen);
 
 #endif

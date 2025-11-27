@@ -135,3 +135,19 @@ dev_urandom(void)
 
 	return (n == -1 || n != sizeof(r)) ? 0 : r;
 }
+
+char *
+randomstr(size_t len, const char *dict)
+{
+	size_t dictlen, i;
+	char *str = (char *)malloc(len + 1);
+	if (!str)
+		return NULL;
+
+	dictlen = strlen(dict);
+	for (i = 0; i < len; i++)
+		str[i] = dict[random_u32() % dictlen];
+
+	str[len] = '\0';
+	return str;
+}
