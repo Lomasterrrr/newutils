@@ -44,7 +44,7 @@ static long long tmax = 0;
 static if_data_t ifd = { 0 }; /* interface data */
 static long long tsum = 0;
 static int method = IPPROTO_ICMP;
-long long *rtts = NULL;
+static long long *rtts = NULL;
 static bool reached = 0;
 static int curhop = 0;
 static u_short lid = 0; /* last ip id */
@@ -59,14 +59,14 @@ static int first = 1;
 static int total = 30;
 static int ttl = 0;
 static int mttl = 0;
-ipaddr_t source = { 0 };
+static ipaddr_t source = { 0 };
 static int off = 0;
 static ipaddr_t curtp = { 0 }; /* current target */
 static bool oflag = 0;
 static int oopt = 0;
 static size_t hopid = 0;
-u_char *payload;
-size_t payloadlen;
+static u_char *payload;
+static size_t payloadlen;
 
 /*
  *		U S A G E
