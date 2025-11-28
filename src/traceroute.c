@@ -206,6 +206,7 @@ callback(void *in, size_t n, void *arg)
 				return 0;
 			if (ntohs((*(u_short *)(buf + 60))) != hopid)
 				return 0;
+
 			memcpy(source.ip.v6.s6_addr, (buf + 22), 16);
 			reached = 1; /* AEEEE */
 			break;
@@ -289,6 +290,14 @@ finish(int sig)
 	exit(0);
 }
 
+/*
+ *		R E S O L V E _ D N S
+ * 
+ * Gets DNS based on its IP address, works with both
+ * IPv4 and IPv6; returns a static buffer. It returns
+ * the DNS by enclosing it in parentheses (). If it is
+ * not found, it returns (???)
+ */
 static inline const char *
 resolve_dns(ipaddr_t *target)
 {
