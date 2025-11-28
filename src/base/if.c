@@ -79,7 +79,7 @@ dlt_open(const char *if_name)
 	struct sockaddr_ll sll = { .sll_ifindex = if_nametoindex(if_name),
 		.sll_family = AF_PACKET,
 		.sll_protocol = htons(ETH_P_ALL) };
-	if (bind(fd, (struct sockaddr *)&sll, sizeof(sll)) < 0)
+	if (bind(dlt->fd, (struct sockaddr *)&sll, sizeof(sll)) < 0)
 		return 0;
 #else
 	struct ifreq ifr = { 0 };
