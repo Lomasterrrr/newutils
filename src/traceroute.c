@@ -154,10 +154,11 @@ callback(void *in, size_t n, void *arg)
 				++unreachable;
 				return 0;
 			}
+
 			if (ntohs((*(u_short *)(buf + 42 + 4))) != lid)
 				return 0;
 
-			memcpy(&source.ip.v4, (buf + 22), 4);
+			memcpy(&source.ip.v4, (buf + 58), 4);
 			reached = 1; /* AEEEE */
 			break;
 		}
@@ -168,7 +169,8 @@ callback(void *in, size_t n, void *arg)
 				return 0;
 			if (ntohs((*(u_short *)(buf + 40))) != hopid)
 				return 0;
-			memcpy(&source.ip.v4, (buf + 22), 4);
+
+			memcpy(&source.ip.v4, (buf + 26), 4);
 			reached = 1; /* AEEEE */
 			break;
 		}
@@ -197,7 +199,7 @@ callback(void *in, size_t n, void *arg)
 			if ((ntohl(inner_ipv6_hdr[0]) & 0x000FFFFF) != lid)
 				return 0;
 			if (buf[55] == 4) {
-				memcpy(source.ip.v6.s6_addr, (buf + 22), 16);
+				memcpy(source.ip.v6.s6_addr, (buf + 69), 16);
 				reached = 1; /* AEEEE */
 				break;
 			}
