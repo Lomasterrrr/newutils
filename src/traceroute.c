@@ -292,7 +292,7 @@ finish(int sig)
 
 /*
  *		R E S O L V E _ D N S
- * 
+ *
  * Gets DNS based on its IP address, works with both
  * IPv4 and IPv6; returns a static buffer. It returns
  * the DNS by enclosing it in parentheses (). If it is

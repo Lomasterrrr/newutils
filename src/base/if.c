@@ -28,10 +28,6 @@
 struct dlt_handle {
 	int fd;			/* File descriptor.  */
 	u_char buf[DLT_BUFLEN]; /* Read buffer.  */
-#ifdef __LINUX
-	/* Need for sendto() on AF_PACKET sockets.  */
-	struct sockaddr_ll sll;
-#endif
 };
 
 dlt_t *
@@ -80,12 +76,14 @@ dlt_open(const char *if_name)
 		goto err;
 
 #ifdef __LINUX
-	dlt->sll.sll_ifindex = if_nametoindex(if_name);
+	struct sockaddr_ll sll = { .sll_ifindex = if_nametoindex(if_name),
+		.sll_family = AF_PACKET,
+		.sll_protocol = ETH_P_ALL };
+	if (bind(fd, (struct sockaddr *)&sll, sizeof(sll)) < 0)
+		return 0;
 #else
 	struct ifreq ifr = { 0 };
-
 	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", if_name);
-
 	if (ioctl(dlt->fd, BIOCSETIF, &ifr) < 0)
 		goto err;
 #endif
@@ -105,12 +103,7 @@ dlt_send(dlt_t *dlt, void *ptr, size_t n)
 	if (!dlt)
 		return -1;
 
-#ifdef __LINUX
-	return sendto(dlt->fd, ptr, n, 0, (struct sockaddr *)&dlt->sll,
-	    sizeof(dlt->sll));
-#else
 	return write(dlt->fd, ptr, n);
-#endif
 }
 
 ssize_t
