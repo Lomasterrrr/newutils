@@ -54,6 +54,7 @@ static struct ether_addr lmac = { 0 }; /* last mac address */
 static size_t npackets = 5;	       /* number of packets (-n, -N) */
 static size_t ntransmitted = 0;
 static size_t nreceived = 0;
+static size_t nrequest = 0;
 static size_t nbroadcast = 0;
 static u_short op = 1; /* default arp opetaion request */
 static long long tmin = 0;
@@ -121,6 +122,10 @@ callback(void *in, size_t n, void *arg)
 	if (n < 42)
 		return 0;
 
+	if (ntohs(*(u_short *)(buf + 20)) != 1 &&
+	    ntohs(*(u_short *)(buf + 20)) != 2)
+		return 0;
+
 	switch (op) {
 	case 1:
 		if (ntohs(*(u_short *)(buf + 12)) != 0x0806)
@@ -131,9 +136,6 @@ callback(void *in, size_t n, void *arg)
 			return 0;
 
 		if (dflag) {
-			if (ntohs(*(u_short *)(buf + 20)) != 1 &&
-			    ntohs(*(u_short *)(buf + 20)) != 2)
-				return 0;
 			if (memcmp((buf + 22), ifd.src, 6) == 0)
 				return 0;
 			u_char n[4] = { 0 };
@@ -142,8 +144,6 @@ callback(void *in, size_t n, void *arg)
 				return 0;
 		} else {
 			if (memcmp(buf /* + 0 */, ifd.src, 6) != 0)
-				return 0;
-			if (ntohs(*(u_short *)(buf + 20)) != 2)
 				return 0;
 			if (memcmp((buf + 32), ifd.src, 6) != 0)
 				return 0;
@@ -213,8 +213,12 @@ stats(struct in_addr *target)
 		goto end;
 	}
 	printf("\n----%s ARPING Statistics----\n", inet_ntoa(*target));
-	printf("%ld packets transmitted (%ld broadcast), %ld packets received",
-	    ntransmitted, nbroadcast, nreceived);
+	printf("%ld packets transmitted", ntransmitted);
+	if (nbroadcast)
+		printf(" (%ld broadcasts)", nbroadcast);
+	printf(", %ld packets received", nreceived);
+	if (nrequest)
+		printf("(%ld requests)", nrequest);
 	if (ntransmitted) {
 		if (nreceived > ntransmitted)
 			printf(" -- somebody's printing up packets!\n");
@@ -466,6 +470,7 @@ loop(struct in_addr *ip)
 	nbroadcast = 0;
 	tmax = LLONG_MIN;
 	nreceived = 0;
+	nrequest = 0;
 	prstats = 0;
 	tmin = LLONG_MAX;
 	curtp = ip;
@@ -506,6 +511,9 @@ loop(struct in_addr *ip)
 
 		} else {
 			nreceived++; /* Packet received.  */
+			if (ntohs(*(u_short *)(buf + 20)) == 1)
+				++nrequest;
+
 			if (eflag || Vflag)
 				pr_pack(outpack, sizeof(outpack), 0, 0);
 			pr_pack(buf, n, tvrtt(&ts_s, &ts_e), ntransmitted);
