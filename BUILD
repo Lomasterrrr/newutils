@@ -1,6 +1,6 @@
 #!/bin/sh
 
-CFLAGS="-Wall -g -O2"
+CFLAGS="-Wall -g -O0"
 [ -f /proc/sys/kernel/osrelease ] && uname -s | grep -q '^Linux$' && CFLAGS="$CFLAGS -D__LINUX"
 
 case "$1" in
@@ -17,6 +17,7 @@ case "$1" in
 	cc $CFLAGS -c src/*.c
 	cc $CFLAGS err.o if.o utils.o arping.o -o arping
 	cc $CFLAGS cksum.o random.o err.o if.o utils.o traceroute.o -o traceroute
+	#cc $CFLAGS cksum.o random.o err.o if.o utils.o ping.o -o ping
         ;;
 esac
 

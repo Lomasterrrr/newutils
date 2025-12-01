@@ -48,6 +48,7 @@ static bool eflag = 0;
 static if_data_t ifd = { 0 }; /* interface data */
 static bool Vflag = 0;
 static bool Dflag = 0;
+static bool dflag = 0;
 static bool lflag = 0;
 static struct ether_addr lmac = { 0 }; /* last mac address */
 static size_t npackets = 5;	       /* number of packets (-n, -N) */
@@ -86,6 +87,7 @@ usage(char **av)
 	fputs("  -b  keep on broadcasting, do not unicast\n", stderr);
 	fputs("  -e  display info in easy (wireshark) style\n", stderr);
 	fputs("  -V  display all info very verbose\n", stderr);
+	fputs("  -d  duplicate address detection mode\n", stderr);
 	fputs("  -l  display only success results\n", stderr);
 	fputs("  -D  display in line (cisco) style (! reply) (. noreply)\n",
 	    stderr);
@@ -119,64 +121,58 @@ callback(void *in, size_t n, void *arg)
 	if (n < 42)
 		return 0;
 
-	if (ntohs(*(u_short *)(buf + 12)) != 0x0806)
-		return 0;
-	if (tflag && (memcmp(buf + 6, &topt, 6) != 0))
-		return 0;
-
-	/* ARP operation code.  */
-	switch (ntohs(*(u_short *)(buf + 20))) {
+	switch (op) {
 	case 1:
-	case 2:
+		if (ntohs(*(u_short *)(buf + 12)) != 0x0806)
+			return 0;
+		if (memcmp(buf /* + 0 */, ifd.src, 6) != 0)
+			return 0;
+		if (tflag && (memcmp(buf + 6, &topt, 6) != 0))
+			return 0;
+		if (ntohs(*(u_short *)(buf + 20)) != 2)
+			return 0;
+		if (*(u_int *)(buf + 28) != target->s_addr)
+			return 0;
+
+		if (dflag) {
+			if (memcmp((buf + 22), ifd.src, 6) == 0)
+				return 0;
+			u_char n[4] = { 0 };
+			if ((memcmp(&n, ifd.srcip4, 4) != 0) &&
+			    (memcmp(buf + 38, ifd.srcip4, 4) != 0))
+				return 0;
+		} else {
+			if (memcmp((buf + 32), ifd.src, 6) != 0)
+				return 0;
+			if (memcmp(buf + 38, ifd.srcip4, 4) != 0)
+				return 0;
+		}
+
+		break;
 	case 3:
-	case 4:
+		if (ntohs(*(u_short *)(buf + 12)) != 0x8035)
+			return 0;
+		if (tflag && (memcmp(buf + 6, &topt, 6) != 0))
+			return 0;
+		if (memcmp(buf /* + 0 */, ifd.src, 6) != 0)
+			return 0;
+		if (ntohs(*(u_short *)(buf + 20)) != 4)
+			return 0;
+		if (memcmp(buf + 32, ifd.src, 6) != 0)
+			return 0;
+		if (*(u_int *)(buf + 38) != target->s_addr &&
+		    *(u_int *)(buf + 28) != target->s_addr)
+			return 0;
+
 		break;
 	default:
 		return 0;
 	}
 
-	switch (op) {
-	case 1:
-	case 2:
-		if (op == 1 && ntohs(*(u_short *)(buf + 20)) != 2)
-			return 0;
-		if (op == 2 && ntohs(*(u_short *)(buf + 20)) != 1)
-			return 0;
-		if (memcmp(buf + 38, ifd.srcip4, 4) != 0)
-			return 0;
-		if (*(u_int *)(buf + 28) != target->s_addr)
-			return 0;
-
-		break;
-	case 3:
-		if (ntohs(*(u_short *)(buf + 20)) != 4)
-			return 0;
-		if (memcmp((buf + 32), ifd.src, 6) != 0)
-			return 0;
-		if (*(u_int *)(buf + 38) != target->s_addr)
-			return 0;
-
-		break;
-	case 4:
-		if (ntohs(*(u_short *)(buf + 20)) != 3)
-			return 0;
-		if (memcmp((buf + 22), ifd.src, 6) != 0)
-			return 0;
-
-		break;
-	}
-
-	if (ntohs(*(u_short *)(buf + 14)) != 0x0001 &&
-	    (/*0x0001 != 0x0306 || */
-		ntohs(*(u_short *)buf + 14) != htons(0x0001)))
+	if (ntohs(*(u_short *)(buf + 14)) != 1)
 		return 0;
-	if ((ntohs(*(u_short *)(buf + 14)) == 0x03) ||
-	    (ntohs(*(u_short *)buf + 14) == 0x00)) {
-		if (ntohs(*(u_short *)(buf + 16)) != 0xcc)
-			return 0;
-	} else if (ntohs(*(u_short *)(buf + 16)) != 0x0800)
+	if (ntohs(*(u_short *)(buf + 16)) != 0x0800)
 		return 0;
-
 	if (buf[18] != 6 || buf[19] != 4)
 		return 0;
 
@@ -349,7 +345,7 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 		    buf[6], buf[7], buf[8], buf[9], buf[10], buf[11], buf[0],
 		    buf[1], buf[2], buf[3], buf[4], buf[5], buf[12], buf[13]);
 
-		printf(" %s {%hu 0x%02x%02x %hhu %hhu %hu",
+		printf(" %s {%hu 0x%02x%02x %hhu %hhu %hu ",
 		    (((ntohs(*(u_short *)(buf + 20)) == 1 ||
 			  ntohs(*(u_short *)(buf + 20)) == 2) ?
 			    "ARP" :
@@ -402,7 +398,8 @@ pinger(struct in_addr *target)
 	memset(outpack, 0, sizeof(outpack));
 	memset(outpack, 0xff, 6);
 	memcpy(outpack + 6, ifd.src, 6);
-	*(u_short *)(outpack + 12) = htons(0x0806);
+	*(u_short *)(outpack + 12) = htons(
+	    ((op == 3 || op == 4) ? 0x8035 : 0x0806)); /* ARP or RARP.  */
 	*(u_short *)(outpack + 14) = htons(0x0001);
 	*(u_short *)(outpack + 16) = htons(0x0800);
 	outpack[18] = 6, outpack[19] = 4;
@@ -463,11 +460,9 @@ loop(struct in_addr *ip)
 		    ifd.srcip4[3], ifd.name);
 
 	for (;;) {
-		/*
-		 * Classic ping loop; packet creation & sending
+		/* Classic ping loop; packet creation & sending
 		 * (pinger), receiving (dlt_recv_cb), displaying
-		 * the received data (pr_pack), delay (sleepns).
-		 */
+		 * the received data (pr_pack), delay (sleepns).  */
 
 		struct timeval ts_s, ts_e;
 		u_char buf[2048] = { 0 };
@@ -476,12 +471,9 @@ loop(struct in_addr *ip)
 		pinger(ip);
 		if ((n = dlt_recv_cb(dlt, buf, sizeof(buf), callback,
 			 (void *)ip, wait, &ts_s, &ts_e)) == -1) {
-			/*
-			 * There is no reason to believe that he is
+			/* There is no reason to believe that he is
 			 * the same; although it is hard to believe
-			 * in change.
-			 */
-
+			 * in change.  */
 			lmac.__ether_octet[0] = '\n';
 
 			if ((eflag || Vflag) && !lflag)
@@ -559,7 +551,7 @@ main(int c, char **av)
 		usage(av);
 
 	signal(SIGINT, finish);
-	while ((ch = getopt(c, av, "GBfhS:s:I:0vo:t:bi:w:n:N:eVDl")) != -1) {
+	while ((ch = getopt(c, av, "dGBfhS:s:I:0vo:t:bi:w:n:N:eVDl")) != -1) {
 		switch (ch) {
 		case 'V':
 			Vflag = 1;
@@ -578,6 +570,10 @@ main(int c, char **av)
 			break;
 		case 'f':
 			npackets = 1, Nflag = 1;
+			break;
+		case 'd':
+			dflag = 1;
+			_0flag = 1;
 			break;
 		case 'b':
 			bflag = 1;

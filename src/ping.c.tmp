@@ -37,6 +37,7 @@ static char *Iopt = NULL;
 static bool prstats = 0; /* print last stats? */
 static size_t ntransmitted = 0;
 static size_t nreceived = 0;
+static size_t nrepeats = 0;
 static size_t ntry = 3;
 static long long tmin = 0;
 static long long wait = 150 * 1000000LL; /* timeout */
@@ -79,40 +80,57 @@ static size_t payloadlen;
 inline static void
 usage(char **av)
 {
+	/*
+	 * all
+	 * tcp ack
+	 * tcp syn
+	 * icmp echo
+	 * icmp info
+	 * icmp tstamp
+	 * udp
+	 * sctp cookie
+	 * udp lite ?
+	 */
+	fputs("  -A \n", stderr);
+	fputs("  -K \n", stderr);
+	fputs("  -Y \n", stderr);
+	fputs("  -E \n", stderr);
+	fputs("  -N \n", stderr);
+	fputs("  -M \n", stderr);
+	fputs("  -U \n", stderr);
+	fputs("  -C \n", stderr);
+	fputs("  -L \n", stderr);
+
 	fputs("Usage\n", stderr);
 	fprintf(stderr, "  %s [options] <targets>\n\n", av[0]);
 	fputs("  -I <dev>   set your interface and his info\n", stderr);
 	fputs("  -s <ipv4>  set source ipv4 address\n", stderr);
 	fputs("  -6 <ipv6>  set source custom ipv6 address\n", stderr);
-	fputs("  -o <tos>   set num in Type Of Service/Traffic class\n",
+	fputs("  -z <tos>   set num in Type Of Service/Traffic class\n",
 	    stderr);
 	fputs("  -S <mac>   set source mac address\n", stderr);
 	fputs("  -i <time>  set interval between packets; ex: 300ms\n", stderr);
-	fputs("  -P <port>  set source (your) port\n", stderr);
-	fputs("  -p <port>  set destination port\n", stderr);
 	fputs("  -w <time>  set wait time or timeout; ex: 2s, 10ms\n", stderr);
-	fputs("  -m <ttl>   set max ttl/hop limit (num hops)\n", stderr);
-	fputs("  -f <ttl>   set first ttl/hop limit (start hop)\n", stderr);
-	fputs("  -n <count> set your num of try\n", stderr);
 	fputs("  -H <hex>   set payload data in hex numbers\n", stderr);
+	fputs("  -p <port>  set destination port\n", stderr);
 	fputs("  -a <ascii> set payload data in ascii\n", stderr);
 	fputs("  -l <len>   set random payload data\n", stderr);
+	fputs("  -P <port>  set source (your) port\n", stderr);
+	fputs("  -n <count> set your num of try\n", stderr);
+	fputs("  -T <ttl>   set ttl\n", stderr);
 	fputc('\n', stderr);
-	fputs("  -v  show some debugging information\n", stderr);
 	fputs("  -4  set More Fragment flag (ipv4)\n", stderr);
 	fputs("  -r  set Reserved Fragment flag (ipv4)\n", stderr);
 	fputs("  -d  set Dont't Fragment flag (ipv4)\n", stderr);
-	fputs("  -A  use all methods and protos\n", stderr);
-	fputs("  -E  use only icmp4 echo packets\n", stderr);
-	fputs("  -Y  use only tcp syn packets\n", stderr);
-	fputs("  -U  use only udp packets\n", stderr);
-	fputs("  -L  use only udp-lite packets\n", stderr);
-	fputs("  -C  use only sctp-cookie packets\n", stderr);
+	fputs("  -f  flood ping\n", stderr);
+	fputs("  -a  k\n", stderr);
+	fputs("  -o  exit after first reply packet\n", stderr);
+	fputs("  -q  enable quiet output\n", stderr);
+	fputs("  -n  no resolve dns\n", stderr);
+	fputs("  -v  show some debugging information\n", stderr);
 	fputs("  -h  show this help message and exit\n", stderr);
+
 	fputs("\nExamples\n", stderr);
-	fprintf(stderr, "  %s -A google.com\n", av[0]);
-	fprintf(stderr, "  %s -n10 -w 50ms 5.255.255.77\n", av[0]);
-	fprintf(stderr, "  %s -n10 -A github.com 5.255.255.77\n", av[0]);
 	exit(0);
 }
 
@@ -241,9 +259,11 @@ callback(void *in, size_t n, void *arg)
 inline static void
 stats(ipaddr_t *target)
 {
-	printf("\n----%s TRACEROUTE Statistics----\n", ipaddr_ntoa(target));
+	printf("\n----%s PING Statistics----\n", ipaddr_ntoa(target));
 	printf("%ld packets transmitted, %ld packets received", ntransmitted,
 	    nreceived);
+	if (nrepeats)
+		printf(", +%ld duplicates, ", nrepeats);
 	if (ntransmitted) {
 		if (nreceived > ntransmitted)
 			printf(" -- somebody's printing up packets!\n");
@@ -262,9 +282,6 @@ stats(ipaddr_t *target)
 		printf("/%s", timefmt(tmax, tmp, sizeof(tmp)));
 		putchar('\n');
 	}
-
-	printf("target %s %s %d hops\n", ipaddr_ntoa(target),
-	    (reached) ? "was reached in" : "has been missed for", curhop);
 
 	putchar('\n');
 	prstats = 1;
@@ -610,123 +627,40 @@ loop(ipaddr_t *ip)
 {
 	ntransmitted = 0;
 	tsum = 0;
+	nrepeats = 0;
 	tmax = LLONG_MIN;
 	nreceived = 0;
-	lid = 0;
 	prstats = 0;
 	tmin = LLONG_MAX;
-	reached = 0;
-	curtp = *ip;
-	curhop = 0;
+	curtp = ip;
 
-	printf("TRACEROUTE %s %s, %d hops max, %zu data bytes\n",
-	    ipaddr_ntoa(ip), resolve_dns(ip), total, payloadlen);
+	printf("PING %s (%s): %zu data bytes\n",
+	    resolve_dns(ip), ipaddr_ntoa(ip), payloadlen);
 
-	ttl = first;
-	mttl = total - (ttl - 1);
-
-	/* We loop through all the TTLs and send ntry probes on each
-	 * one: we send the probe (sendprobe), receive the response
-	 * (dlt_recv_cb), and output the results. If the host is
-	 * reached or unavailable, we terminate.*/
-	for (; mttl; mttl--) {
+	for (;;) {
 		struct timeval ts_s, ts_e;
-		u_char buf[65535] = { 0 };
-		ipaddr_t tmpip = { 0 };
-		bool okttl = 0;
+		u_char buf[2048] = { 0 };
 		ssize_t n;
 
-		memset(rtts, 0, (ntry * sizeof(long long)));
-		printf("%2d  ", ttl);
-		unreachable = 0;
-		curhop = ttl;
+		pinger(ip);
+		if ((n = dlt_recv_cb(dlt, buf, sizeof(buf), callback,
+			 (void *)ip, wait, &ts_s, &ts_e)) == -1) {
+			warnx("no response received");
+			if (errno != 0)
+				warn("recv");
 
-		for (hopid = 1; hopid <= ntry; hopid++) {
-			sleepns(interval);
-			sendprobe(ip, method, payload, (u_int)payloadlen);
-			if ((n = dlt_recv_cb(dlt, buf, sizeof(buf), callback,
-				 (void *)ip, wait, &ts_s, &ts_e)) == -1) {
-				/* If the -A flag is set, then we try all
-				 * methods until we get an answer, or until
-				 * they run out.  */
-				if (Aflag) {
-					switch (method) {
-					case IPPROTO_ICMP:
-						method = IPPROTO_TCP;
-						break;
-					case IPPROTO_TCP:
-						method = IPPROTO_UDP;
-						break;
-					case IPPROTO_UDP:
-						method = IPPROTO_SCTP;
-						break;
-					case IPPROTO_SCTP:
-						method = IPPROTO_UDPLITE;
-						break;
-					case IPPROTO_UDPLITE:
-						method = IPPROTO_ICMP;
-						goto next;
-					}
-					--hopid;
-					continue;
-				}
-			next:
-				putchar('.');
-				fflush(stdout);
-			} else {
-				++nreceived;
-
-				/* We save our response time in a buffer.  */
-				rtts[hopid - 1] = tvrtt(&ts_s, &ts_e);
-
-				/* We check whether the response came from the
-				 * new host, or whether there was one already.
-				 */
-				if (memcmp(&source, &tmpip, sizeof(ipaddr_t))) {
-					printf("%s %s", ipaddr_ntoa(&source),
-					    resolve_dns(&source));
-					tmpip = source;
-				}
-
-				okttl = 1;
-			}
+		} else {
+			nreceived++; /* Packet received.  */
+			pr_pack(buf, n, tvrtt(&ts_s, &ts_e), ntransmitted);
 		}
 
-		/* We display the response time if at least one attempt
-		 * was successful. */
-		if (okttl) {
-			printf("    ");
-			for (n = 1; n <= ntry; n++)
-				printf("%s ",
-				    timefmt(rtts[n - 1], (char *)buf,
-					sizeof(buf)));
-		}
-
-		putchar('\n');
-
-		/*
-		 * If 10% all hosts send us an error, and one that
-		 * doesn't indicate availability, then there's no
-		 * point in continuing.
-		 */
-		n = (ntry * 10 + 99) / 100;
-		n = (n < 1) ? 1 : n;
-
-		if (unreachable && unreachable >= n) {
-			fprintf(stderr, "Host is down (%zu unreachable)\n",
-			    unreachable);
-			break;
-		}
-
-		/* We have achieved our target.  */
-		if (reached)
+		if (/* nreceived? -N flag ? */ntransmitted == npackets)
 			break;
 
-		++ttl;
+		sleepns(interval);
 	}
 
-	if (!prstats)
-		stats(ip);
+	stats(ip);
 }
 
 /*
@@ -767,7 +701,7 @@ if_setup(void)
 }
 
 /*
- *		T R A C E R O U T E
+ *		P I N G
  */
 int
 main(int c, char **av)
