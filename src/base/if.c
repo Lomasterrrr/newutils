@@ -87,8 +87,9 @@ dlt_open(const char *if_name)
 	if (bind(dlt->fd, (struct sockaddr *)&sll, sizeof(sll)) < 0)
 		return 0;
 
-	setsockopt(dlt->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq,
+	n = setsockopt(dlt->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq,
 	    sizeof(mreq));
+	printf("TEST %d\n", n);
 #else
 	struct ifreq ifr = { 0 };
 	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", if_name);
