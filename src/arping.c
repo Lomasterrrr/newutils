@@ -218,7 +218,7 @@ stats(struct in_addr *target)
 		printf(" (%ld broadcasts)", nbroadcast);
 	printf(", %ld packets received", nreceived);
 	if (nrequest)
-		printf("(%ld requests)", nrequest);
+		printf(" (%ld requests)", nrequest);
 	if (ntransmitted) {
 		if (nreceived > ntransmitted)
 			printf(" -- somebody's printing up packets!\n");
