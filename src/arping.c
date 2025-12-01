@@ -56,6 +56,7 @@ static size_t ntransmitted = 0;
 static size_t nreceived = 0;
 static size_t nrequest = 0;
 static size_t nbroadcast = 0;
+static size_t nbroadcast_rcvd = 0;
 static u_short op = 1; /* default arp opetaion request */
 static long long tmin = 0;
 static long long tmax = 0;
@@ -219,6 +220,8 @@ stats(struct in_addr *target)
 	printf(", %ld packets received", nreceived);
 	if (nrequest)
 		printf(" (%ld requests)", nrequest);
+	if (nbroadcast_rcvd)
+		printf(" (%ld broadcast)", nbroadcast_rcvd);
 	if (ntransmitted) {
 		if (nreceived > ntransmitted)
 			printf(" -- somebody's printing up packets!\n");
@@ -468,6 +471,7 @@ loop(struct in_addr *ip)
 	ntransmitted = 0;
 	tsum = 0;
 	nbroadcast = 0;
+	nbroadcast_rcvd = 0;
 	tmax = LLONG_MIN;
 	nreceived = 0;
 	nrequest = 0;
@@ -511,8 +515,17 @@ loop(struct in_addr *ip)
 
 		} else {
 			nreceived++; /* Packet received.  */
-			if (ntohs(*(u_short *)(buf + 20)) == 1)
+
+			/* Received ARP or RARP request.  */
+			if (ntohs(*(u_short *)(buf + 20)) == 1 ||
+			    ntohs(*(u_short *)(buf + 20)) == 4)
 				++nrequest;
+
+			/* Received broadcast.  */
+			if (buf[7] == 0xff && buf[8] == 0xff &&
+			    buf[9] == 0xff && buf[10] == 0xff &&
+			    buf[11] == 0xff && buf[12] == 0xff)
+				++nbroadcast_rcvd;
 
 			if (eflag || Vflag)
 				pr_pack(outpack, sizeof(outpack), 0, 0);
