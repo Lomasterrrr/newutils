@@ -34,6 +34,9 @@ dlt_t *
 dlt_open(const char *if_name)
 {
 	dlt_t *dlt = NULL;
+#ifndef __LINUX
+	int n = 0;
+#endif
 
 	if (!if_name)
 		return NULL;
@@ -47,7 +50,6 @@ dlt_open(const char *if_name)
 	dlt->fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 #else
 	char name[512] = { 0 };
-	int n = 0;
 
 	if ((dlt->fd = open("/dev/bpf", O_RDWR)) == -1) {
 		if (errno == EACCES)
@@ -85,6 +87,9 @@ dlt_open(const char *if_name)
 	struct ifreq ifr = { 0 };
 	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", if_name);
 	if (ioctl(dlt->fd, BIOCSETIF, &ifr) < 0)
+		goto err;
+	n = 1;
+	if (ioctl(dlt->fd, BIOCPROMISC, (u_int *)&n) < 0)
 		goto err;
 #endif
 
