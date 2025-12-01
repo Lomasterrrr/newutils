@@ -951,16 +951,12 @@ main(int c, char **av)
 			    mask, net);
 			switch (ip.af) {
 			case AF_INET:
-				n = (bits == 32) ?
-				    1 :
-				    (__uint128_t)1 << (32 - bits);
+				n = (__uint128_t)1 << (32 - bits);
 				ip.ip.v4.s_addr = htonl((net[0] << 24) |
 				    (net[1] << 16) | (net[2] << 8) | net[3]);
 				break;
 			case AF_INET6:
-				if (bits >= 128)
-					n = 1;
-				else if (bits == 0)
+				if (bits == 0)
 					n = ~(__uint128_t)0;
 				else
 					n = (__uint128_t)1 << (128 - bits);

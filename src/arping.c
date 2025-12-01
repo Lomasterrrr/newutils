@@ -707,8 +707,8 @@ main(int c, char **av)
 			if (!sb)
 				loop(&ip);
 			else {
-				u_char mask[4];
-				u_char net[4];
+				u_char mask[4] = { 0 };
+				u_char net[4] = { 0 };
 				u_short bits;
 				size_t n;
 
@@ -721,12 +721,12 @@ main(int c, char **av)
 				ip.s_addr = htonl((net[0] << 24) |
 				    (net[1] << 16) | (net[2] << 8) | net[3]);
 
-				n = (bits == 32) ? 1 : 1 << (32 - bits);
+				n = (size_t)1 << (32 - bits);
 
 				if (vflag)
 					fprintf(stderr,
 					    "Target cidr: %s/%s"
-					    " (%ld ips)\n",
+					    " (%zu ips)\n",
 					    p, sb, n);
 
 				while (n--) {
