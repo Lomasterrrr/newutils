@@ -125,16 +125,15 @@ callback(void *in, size_t n, void *arg)
 	case 1:
 		if (ntohs(*(u_short *)(buf + 12)) != 0x0806)
 			return 0;
-		if (memcmp(buf /* + 0 */, ifd.src, 6) != 0)
-			return 0;
 		if (tflag && (memcmp(buf + 6, &topt, 6) != 0))
-			return 0;
-		if (ntohs(*(u_short *)(buf + 20)) != 2)
 			return 0;
 		if (*(u_int *)(buf + 28) != target->s_addr)
 			return 0;
 
 		if (dflag) {
+			if (ntohs(*(u_short *)(buf + 20)) != 1 &&
+			    ntohs(*(u_short *)(buf + 20)) != 2)
+				return 0;
 			if (memcmp((buf + 22), ifd.src, 6) == 0)
 				return 0;
 			u_char n[4] = { 0 };
@@ -142,6 +141,10 @@ callback(void *in, size_t n, void *arg)
 			    (memcmp(buf + 38, ifd.srcip4, 4) != 0))
 				return 0;
 		} else {
+			if (memcmp(buf /* + 0 */, ifd.src, 6) != 0)
+				return 0;
+			if (ntohs(*(u_short *)(buf + 20)) != 2)
+				return 0;
 			if (memcmp((buf + 32), ifd.src, 6) != 0)
 				return 0;
 			if (memcmp(buf + 38, ifd.srcip4, 4) != 0)
@@ -368,9 +371,10 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 		putchar('!');
 		fflush(stdout);
 	} else {
+		bool pflg = 0;
+
 		printf("%ld bytes from %s %hhu.%hhu.%hhu.%hhu"
-		       " (%02x:%02x:%02x:%02x:%02x:%02x) id=%ld"
-		       " time=%s\n",
+		       " (%02x:%02x:%02x:%02x:%02x:%02x)",
 		    n,
 		    ((ntohs(*(u_short *)(buf + 20)) == 1) ? "arp-req" :
 			    (ntohs(*(u_short *)(buf + 20)) == 2) ?
@@ -381,7 +385,19 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 							    "rarp-reply" :
 							    "???"),
 		    buf[28], buf[29], buf[30], buf[31], buf[22], buf[23],
-		    buf[24], buf[25], buf[26], buf[27], nreceived,
+		    buf[24], buf[25], buf[26], buf[27]);
+
+		if (memcmp(buf + 38, ifd.srcip4, 4) != 0) {
+			printf(" for %hhu.%hhu.%hhu.%hhu", buf[38], buf[39],
+			    buf[40], buf[41]);
+			pflg = 1;
+		}
+		if (memcmp(buf + 32, ifd.src, 6) != 0)
+			printf("%s(%02x:%02x:%02x:%02x:%02x:%02x)",
+			    (!pflg) ? "for " : " ", buf[32], buf[33], buf[34],
+			    buf[35], buf[36], buf[37]);
+
+		printf(" id=%ld time=%s\n", nreceived,
 		    timefmt(rtt, t, sizeof(t)));
 	}
 }
