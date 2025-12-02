@@ -139,8 +139,6 @@ callback(void *in, size_t n, void *arg)
 	case 2:
 		if (*(u_int *)(buf + 28) != target->s_addr)
 			return 0;
-		if (memcmp(buf + 38, ifd.srcip4, 4) != 0)
-			return 0;
 
 		if (dflag) {
 			if (memcmp((buf + 22), ifd.src, 6) == 0)
@@ -152,6 +150,8 @@ callback(void *in, size_t n, void *arg)
 			if (memcmp(buf /* + 0 */, ifd.src, 6) != 0)
 				return 0;
 			if (memcmp((buf + 32), ifd.src, 6) != 0)
+				return 0;
+			if (memcmp(buf + 38, ifd.srcip4, 4) != 0)
 				return 0;
 		}
 
