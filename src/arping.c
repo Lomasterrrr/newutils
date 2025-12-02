@@ -48,6 +48,8 @@ static bool eflag = 0;
 static if_data_t ifd = { 0 }; /* interface data */
 static bool Vflag = 0;
 static bool Dflag = 0;
+static bool Aflag = 0;
+static bool Uflag = 0;
 static bool dflag = 0;
 static bool lflag = 0;
 static struct ether_addr lmac = { 0 }; /* last mac address */
@@ -57,7 +59,6 @@ static size_t nreceived = 0;
 static size_t nrequest = 0;
 static size_t nbroadcast = 0;
 static size_t nbroadcast_rcvd = 0;
-static u_short op = 1; /* default arp opetaion request */
 static long long tmin = 0;
 static long long tmax = 0;
 static long long tsum = 0;
@@ -79,7 +80,6 @@ usage(char **av)
 	fputs("  -S <mac>   set source mac address\n", stderr);
 	fputs("  -s <ipv4>  set source ipv4 address\n", stderr);
 	fputs("  -t <mac>   set obviously target mac\n", stderr);
-	fputs("  -o <num>   set your arp operation; advice 1-4\n", stderr);
 	fputs("  -i <time>  set interval between packets; ex: 300ms\n", stderr);
 	fputs("  -w <time>  set wait time or timeout; ex: 2s, 10ms\n", stderr);
 	fputs("  -n <count> set how many packets to send\n", stderr);
@@ -89,10 +89,11 @@ usage(char **av)
 	fputs("  -b  keep on broadcasting, do not unicast\n", stderr);
 	fputs("  -e  display info in easy (wireshark) style\n", stderr);
 	fputs("  -V  display all info very verbose\n", stderr);
+	fputs("  -A  send only arp reply; enables -U\n", stderr);
+	fputs("  -U  unsolicited arp mode; srcip = targetip\n", stderr);
 	fputs("  -d  duplicate address detection mode\n", stderr);
 	fputs("  -l  display only success results\n", stderr);
-	fputs("  -D  display in line (cisco) style (! reply) (. noreply)\n",
-	    stderr);
+	fputs("  -D  display in cisco style (! reply) (. noreply)\n", stderr);
 	fputs("  -B  use ipv4 address 255.255.255.255 how target\n", stderr);
 	fputs("  -G  use device gateway ipv4 how target\n", stderr);
 	fputs("  -v  show some debugging information\n", stderr);
@@ -405,11 +406,15 @@ pinger(struct in_addr *target)
 	*(u_short *)(outpack + 14) = htons(0x0001);
 	*(u_short *)(outpack + 16) = htons(0x0800);
 	outpack[18] = 6, outpack[19] = 4;
-	*(u_short *)(outpack + 20) = htons(op);
+	*(u_short *)(outpack + 20) = htons((Aflag) ? 2 : 1);
 	memcpy(outpack + 22, ifd.src, 6);
 	memcpy(outpack + 28, ifd.srcip4, 4);
-	memset(outpack + 32, 0xff, 6);
 	memcpy(outpack + 38, target, 4);
+
+	if (Aflag)
+		memcpy(outpack + 32, ifd.src, 6);
+	else
+		memset(outpack + 32, 0xff, 6);
 
 	if (tflag) {
 		memcpy(outpack, &topt, 6);
@@ -471,6 +476,9 @@ loop(struct in_addr *ip)
 		struct timeval ts_s, ts_e;
 		u_char buf[2048] = { 0 };
 		ssize_t n;
+
+		if (Uflag && !_0flag && !Sflag && !dflag)
+			*(u_int *)(ifd.srcip4) = ip->s_addr;
 
 		pinger(ip);
 		if ((n = dlt_recv_cb(dlt, buf, sizeof(buf), callback,
@@ -566,7 +574,7 @@ main(int c, char **av)
 		usage(av);
 
 	signal(SIGINT, finish);
-	while ((ch = getopt(c, av, "dGBfhS:s:I:0vo:t:bi:w:n:N:eVDl")) != -1) {
+	while ((ch = getopt(c, av, "UAdGBfhS:s:I:0vt:bi:w:n:N:eVDl")) != -1) {
 		switch (ch) {
 		case 'V':
 			Vflag = 1;
@@ -633,9 +641,11 @@ main(int c, char **av)
 				errx(1, "failed convert \"%s\" in mac", optarg);
 			Sflag = 1;
 			break;
-		case 'o':
-			if (!u_numarg(optarg, 1, 2, &op, sizeof(op)))
-				errx(1, "invalid arp operation \"%s\"", optarg);
+		case 'U':
+			Uflag = 1;
+			break;
+		case 'A':
+			Aflag = 1, Uflag = 1;
 			break;
 		case '0':
 			_0flag = 1;
