@@ -81,34 +81,32 @@ usage(char **av)
 {
 	fputs("Usage\n", stderr);
 	fprintf(stderr, "  %s [options] <targets>\n\n", av[0]);
-	fputs("  -I <dev>   set your interface and his info\n", stderr);
-	fputs("  -s <ipv4>  set source ipv4 address\n", stderr);
-	fputs("  -6 <ipv6>  set source custom ipv6 address\n", stderr);
-	fputs("  -o <tos>   set num in Type Of Service/Traffic class\n",
-	    stderr);
-	fputs("  -S <mac>   set source mac address\n", stderr);
-	fputs("  -i <time>  set interval between packets; ex: 300ms\n", stderr);
-	fputs("  -P <port>  set source (your) port\n", stderr);
-	fputs("  -p <port>  set destination port\n", stderr);
-	fputs("  -w <time>  set wait time or timeout; ex: 2s, 10ms\n", stderr);
-	fputs("  -m <ttl>   set max ttl/hop limit (num hops)\n", stderr);
-	fputs("  -f <ttl>   set first ttl/hop limit (start hop)\n", stderr);
-	fputs("  -n <count> set your num of try\n", stderr);
-	fputs("  -H <hex>   set payload data in hex numbers\n", stderr);
-	fputs("  -a <ascii> set payload data in ascii\n", stderr);
-	fputs("  -l <len>   set random payload data\n", stderr);
-	fputc('\n', stderr);
-	fputs("  -v  show some debugging information\n", stderr);
-	fputs("  -4  set More Fragment flag (ipv4)\n", stderr);
-	fputs("  -r  set Reserved Fragment flag (ipv4)\n", stderr);
-	fputs("  -d  set Dont't Fragment flag (ipv4)\n", stderr);
-	fputs("  -A  use all methods and protos\n", stderr);
-	fputs("  -E  use only icmp4 echo packets\n", stderr);
-	fputs("  -Y  use only tcp syn packets\n", stderr);
-	fputs("  -U  use only udp packets\n", stderr);
-	fputs("  -L  use only udp-lite packets\n", stderr);
-	fputs("  -C  use only sctp-cookie packets\n", stderr);
-	fputs("  -h  show this help message and exit\n", stderr);
+	fputs("  -I <dev>\tset your interface and his info\n", stderr);
+	fputs("  -s <ipv4>\tset source ipv4 address\n", stderr);
+	fputs("  -6 <ipv6>\tset source custom ipv6 address\n", stderr);
+	fputs("  -o <tos>\tset num in Type Of Service/Traffic class\n", stderr);
+	fputs("  -S <mac>\tset source mac address\n", stderr);
+	fputs("  -i <time>\tset interval between packets; ex: 300ms\n", stderr);
+	fputs("  -P <port>\tset source (your) port\n", stderr);
+	fputs("  -p <port>\tset destination port\n", stderr);
+	fputs("  -w <time>\tset wait time or timeout; ex: 2s, 10ms\n", stderr);
+	fputs("  -m <ttl>\tset max ttl/hop limit (num hops)\n", stderr);
+	fputs("  -f <ttl>\tset first ttl/hop limit (start hop)\n", stderr);
+	fputs("  -n <count>\tset your num of try\n", stderr);
+	fputs("  -H <hex>\tset payload data in hex numbers\n", stderr);
+	fputs("  -a <ascii>\tset payload data in ascii\n", stderr);
+	fputs("  -l <len>\tset random payload data\n", stderr);
+	fputs("  -v\t\tshow some debugging information\n", stderr);
+	fputs("  -4\t\tset More Fragment flag (ipv4)\n", stderr);
+	fputs("  -r\t\tset Reserved Fragment flag (ipv4)\n", stderr);
+	fputs("  -d\t\tset Dont't Fragment flag (ipv4)\n", stderr);
+	fputs("  -A\t\tuse all methods and protos\n", stderr);
+	fputs("  -E\t\tuse only icmp4 echo packets\n", stderr);
+	fputs("  -Y\t\tuse only tcp syn packets\n", stderr);
+	fputs("  -U\t\tuse only udp packets\n", stderr);
+	fputs("  -L\t\tuse only udp-lite packets\n", stderr);
+	fputs("  -C\t\tuse only sctp-cookie packets\n", stderr);
+	fputs("  -h\t\tshow this help message and exit\n", stderr);
 	fputs("\nExamples\n", stderr);
 	fprintf(stderr, "  %s -A google.com\n", av[0]);
 	fprintf(stderr, "  %s -n10 -w 50ms 5.255.255.77\n", av[0]);
@@ -704,11 +702,9 @@ loop(ipaddr_t *ip)
 
 		putchar('\n');
 
-		/*
-		 * If 10% all hosts send us an error, and one that
+		/* If 10% all hosts send us an error, and one that
 		 * doesn't indicate availability, then there's no
-		 * point in continuing.
-		 */
+		 * point in continuing.  */
 		n = (ntry * 10 + 99) / 100;
 		n = (n < 1) ? 1 : n;
 
@@ -791,6 +787,7 @@ main(int c, char **av)
 			break;
 		case 'A':
 			Aflag = 1;
+			method = IPPROTO_ICMP;
 			break;
 		case 'E':
 			method = IPPROTO_ICMP;
