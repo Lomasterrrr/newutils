@@ -176,6 +176,22 @@ dlt_recv_cb(dlt_t *dlt, void *buf, size_t n, dlt_rcall_t cb, void *arg,
 		gettimeofday(ts_s, NULL);
 
 	for (;;) {
+		struct timeval timeout = { .tv_sec = ns / 1000000000,
+			.tv_usec = (ns % 1000000000) / 1000 };
+		fd_set rfds;
+
+		FD_ZERO(&rfds);
+		FD_SET(dlt->fd, &rfds);
+
+		errno = 0;
+		if ((ret = select(dlt->fd + 1, &rfds, NULL, NULL, &timeout)) ==
+		    -1) {
+			if (errno == EINTR)
+				continue;
+			return -1;
+		} else if (ret == 0)
+			return -1;
+
 		errno = 0;
 		ret = dlt_recv(dlt, buf, n);
 		if (ts_e)

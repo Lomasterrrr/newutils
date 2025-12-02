@@ -123,24 +123,29 @@ callback(void *in, size_t n, void *arg)
 	if (n < 42)
 		return 0;
 
-	if (ntohs(*(u_short *)(buf + 20)) != 1 &&
-	    ntohs(*(u_short *)(buf + 20)) != 2)
+	if (ntohs(*(u_short *)(buf + 12)) != 0x0806)
+		return 0;
+	if (ntohs(*(u_short *)(buf + 14)) != 1)
+		return 0;
+	if (ntohs(*(u_short *)(buf + 16)) != 0x0800)
+		return 0;
+	if (buf[18] != 6 || buf[19] != 4)
+		return 0;
+	if (tflag && (memcmp(buf + 6, &topt, 6) != 0))
 		return 0;
 
-	switch (op) {
+	switch (ntohs(*(u_short *)(buf + 20))) {
 	case 1:
-		if (ntohs(*(u_short *)(buf + 12)) != 0x0806)
-			return 0;
-		if (tflag && (memcmp(buf + 6, &topt, 6) != 0))
-			return 0;
+	case 2:
 		if (*(u_int *)(buf + 28) != target->s_addr)
+			return 0;
+		if (memcmp(buf + 38, ifd.srcip4, 4) != 0)
 			return 0;
 
 		if (dflag) {
 			if (memcmp((buf + 22), ifd.src, 6) == 0)
 				return 0;
-			u_char n[4] = { 0 };
-			if ((memcmp(&n, ifd.srcip4, 4) != 0) &&
+			if (!(memchr(ifd.srcip4, 0, 4)) &&
 			    (memcmp(buf + 38, ifd.srcip4, 4) != 0))
 				return 0;
 		} else {
@@ -148,47 +153,22 @@ callback(void *in, size_t n, void *arg)
 				return 0;
 			if (memcmp((buf + 32), ifd.src, 6) != 0)
 				return 0;
-			if (memcmp(buf + 38, ifd.srcip4, 4) != 0)
-				return 0;
 		}
 
-		break;
-	case 3:
-		if (ntohs(*(u_short *)(buf + 12)) != 0x8035)
-			return 0;
-		if (tflag && (memcmp(buf + 6, &topt, 6) != 0))
-			return 0;
-		if (memcmp(buf /* + 0 */, ifd.src, 6) != 0)
-			return 0;
-		if (ntohs(*(u_short *)(buf + 20)) != 4)
-			return 0;
-		if (memcmp(buf + 32, ifd.src, 6) != 0)
-			return 0;
-		if (*(u_int *)(buf + 38) != target->s_addr &&
-		    *(u_int *)(buf + 28) != target->s_addr)
-			return 0;
+		if (lmac.__ether_octet[0] == '\n') {
+			if (vflag)
+				fprintf(stderr,
+				    "Found mac address: "
+				    "%02x:%02x:%02x:%02x:%02x:%02x\n",
+				    buf[22], buf[22 + 1], buf[22 + 2],
+				    buf[22 + 3], buf[22 + 4], buf[22 + 5]);
+
+			memcpy(&lmac, buf + 22, 6);
+		}
 
 		break;
 	default:
 		return 0;
-	}
-
-	if (ntohs(*(u_short *)(buf + 14)) != 1)
-		return 0;
-	if (ntohs(*(u_short *)(buf + 16)) != 0x0800)
-		return 0;
-	if (buf[18] != 6 || buf[19] != 4)
-		return 0;
-
-	if (op == 1 && lmac.__ether_octet[0] == '\n') {
-		if (vflag)
-			fprintf(stderr,
-			    "Found mac address: "
-			    "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			    buf[22], buf[22 + 1], buf[22 + 2], buf[22 + 3],
-			    buf[22 + 4], buf[22 + 5]);
-
-		memcpy(&lmac, buf + 22, 6);
 	}
 
 	return 1;
@@ -421,8 +401,7 @@ pinger(struct in_addr *target)
 	memset(outpack, 0, sizeof(outpack));
 	memset(outpack, 0xff, 6);
 	memcpy(outpack + 6, ifd.src, 6);
-	*(u_short *)(outpack + 12) = htons(
-	    ((op == 3 || op == 4) ? 0x8035 : 0x0806)); /* ARP or RARP.  */
+	*(u_short *)(outpack + 12) = htons(0x0806);
 	*(u_short *)(outpack + 14) = htons(0x0001);
 	*(u_short *)(outpack + 16) = htons(0x0800);
 	outpack[18] = 6, outpack[19] = 4;
@@ -507,8 +486,8 @@ loop(struct in_addr *ip)
 				if (Dflag) {
 					putchar('.');
 					fflush(stdout);
-				} else
-					warnx("no response received");
+				} else if (errno == 0)
+					warnx("no response received (timeout)");
 			}
 			if (errno != 0)
 				warn("recv");
@@ -516,9 +495,8 @@ loop(struct in_addr *ip)
 		} else {
 			nreceived++; /* Packet received.  */
 
-			/* Received ARP or RARP request.  */
-			if (ntohs(*(u_short *)(buf + 20)) == 1 ||
-			    ntohs(*(u_short *)(buf + 20)) == 4)
+			/* Received ARP request.  */
+			if (ntohs(*(u_short *)(buf + 20)) == 1)
 				++nrequest;
 
 			/* Received broadcast.  */
@@ -609,8 +587,7 @@ main(int c, char **av)
 			npackets = 1, Nflag = 1;
 			break;
 		case 'd':
-			dflag = 1;
-			_0flag = 1;
+			dflag = 1, _0flag = 1;
 			break;
 		case 'b':
 			bflag = 1;
@@ -626,7 +603,7 @@ main(int c, char **av)
 		case 'n':
 			if (ch == 'N')
 				Nflag = 1;
-			if (!u_numarg(optarg, 0, SIZE_MAX, &npackets,
+			if (!u_numarg(optarg, 1, SIZE_MAX, &npackets,
 				sizeof(npackets)))
 				errx(1, "invalid number \"%s\"", optarg);
 			break;
@@ -657,8 +634,8 @@ main(int c, char **av)
 			Sflag = 1;
 			break;
 		case 'o':
-			if (!u_numarg(optarg, 1, 4, &op, sizeof(op)))
-				errx(1, "invalid operation \"%s\"", optarg);
+			if (!u_numarg(optarg, 1, 2, &op, sizeof(op)))
+				errx(1, "invalid arp operation \"%s\"", optarg);
 			break;
 		case '0':
 			_0flag = 1;
