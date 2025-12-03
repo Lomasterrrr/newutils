@@ -190,7 +190,7 @@ callback(void *in, size_t n, void *arg)
 		if (buf[20] != IPPROTO_ICMPV6) /* only icmp6 packets */
 			return 0;
 
-		/* The same as with ipv4, but there is no protocol
+		/* The same as with IPv4, but there is no protocol
 		 * error.  */
 		if (buf[54] == 1) {
 			const u_int *inner_ipv6_hdr = (const u_int *)(buf + 62);
@@ -201,6 +201,12 @@ callback(void *in, size_t n, void *arg)
 				reached = 1; /* AEEEE */
 				break;
 			}
+			/* However, the PARAM PROBLEM type with code 1 also
+			 * reports host availability with ICMPv6.  */
+		} else if (buf[54] == 4 && buf[55] == 1) {
+			memcpy(source.ip.v6.s6_addr, (buf + 69), 16);
+			reached = 1; /* AEEEE */
+			break;
 		} else if (buf[54] == 129) {
 			if (ntohs((*(u_short *)(buf + 58))) != lid)
 				return 0;
@@ -680,7 +686,8 @@ loop(ipaddr_t *ip)
 				/* We check whether the response came from the
 				 * new host, or whether there was one already.
 				 */
-				if (memcmp(&source, &tmpip, sizeof(ipaddr_t))) {
+				if (memcmp(&source, &tmpip,
+					(source.af == AF_INET) ? 4 : 6)) {
 					printf("%s %s", ipaddr_ntoa(&source),
 					    resolve_dns(&source));
 					tmpip = source;
