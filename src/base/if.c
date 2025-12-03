@@ -138,17 +138,22 @@ dlt_recv(dlt_t *dlt, void *ptr, size_t n)
 
 	struct bpf_hdr *bh = (struct bpf_hdr *)p;
 
+	/* Paddings.  */
+	if (ret <= (ssize_t)bh->bh_hdrlen)
+		return 0;
+
 	/* Skip bpf header.  */
 	p += bh->bh_hdrlen;
-	ret -= bh->bh_hdrlen;
+	ret = (ssize_t)bh->bh_caplen;
 #endif
 
 	if (ptr && n) {
 		n = (n > (size_t)ret) ? (size_t)ret : n;
 		memcpy(ptr, p, n);
+		return (ssize_t)n;
 	}
 
-	return n;
+	return 0;
 }
 
 void

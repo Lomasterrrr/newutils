@@ -283,7 +283,7 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 	if (eflag) {
 		switch ((ntohs(*(u_short *)(buf + 20)))) {
 		case 1:
-			printf("%ld bytes %02x:%02x:%02x:%02x:%02x:%02x"
+			printf("%zu bytes %02x:%02x:%02x:%02x:%02x:%02x"
 			       " > %02x:%02x:%02x:%02x:%02x:%02x ARP Who has"
 			       " %hhu.%hhu.%hhu.%hhu? Tell %hhu.%hhu.%hhu.%hhu",
 			    n, buf[6], buf[7], buf[8], buf[9], buf[10], buf[11],
@@ -292,7 +292,7 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 			    buf[29], buf[30], buf[31]);
 			break;
 		case 2:
-			printf("%ld bytes %02x:%02x:%02x:%02x:%02x:%02x"
+			printf("%zu bytes %02x:%02x:%02x:%02x:%02x:%02x"
 			       " > %02x:%02x:%02x:%02x:%02x:%02x ARP"
 			       " %hhu.%hhu.%hhu.%hhu at %02x:%02x:%02x:"
 			       "%02x:%02x:%02x",
@@ -302,7 +302,7 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 			    buf[23], buf[24], buf[25], buf[26], buf[27]);
 			break;
 		case 3:
-			printf("%ld bytes %02x:%02x:%02x:%02x:%02x:%02x"
+			printf("%zu bytes %02x:%02x:%02x:%02x:%02x:%02x"
 			       " > %02x:%02x:%02x:%02x:%02x:%02x RARP Who is"
 			       " %02x:%02x:%02x:%02x:%02x:%02x? Tell"
 			       " %02x:%02x:%02x:%02x:%02x:%02x",
@@ -313,7 +313,7 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 			    buf[26], buf[27]);
 			break;
 		case 4:
-			printf("%ld bytes %02x:%02x:%02x:%02x:%02x:%02x"
+			printf("%zu bytes %02x:%02x:%02x:%02x:%02x:%02x"
 			       " > %02x:%02x:%02x:%02x:%02x:%02x RARP"
 			       " %02x:%02x:%02x:%02x:%02x:%02x is at "
 			       "%hhu.%hhu.%hhu.%hhu",
@@ -328,7 +328,7 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 
 		putchar('\n');
 	} else if (Vflag) {
-		printf("%ld bytes", n);
+		printf("%zu bytes", n);
 
 		printf(" MAC {%02x:%02x:%02x:%02x:%02x:%02x > "
 		       "%02x:%02x:%02x:%02x:%02x:%02x 0x%02x%02x}",
@@ -360,7 +360,7 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 	} else {
 		bool pflg = 0;
 
-		printf("%ld bytes from %s %hhu.%hhu.%hhu.%hhu"
+		printf("%zu bytes from %s %hhu.%hhu.%hhu.%hhu"
 		       " (%02x:%02x:%02x:%02x:%02x:%02x)",
 		    n,
 		    ((ntohs(*(u_short *)(buf + 20)) == 1) ? "arp-req" :
@@ -384,7 +384,7 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 			    (!pflg) ? "for " : " ", buf[32], buf[33], buf[34],
 			    buf[35], buf[36], buf[37]);
 
-		printf(" id=%ld time=%s\n", nreceived,
+		printf(" id=%zu time=%s\n", nreceived,
 		    timefmt(rtt, t, sizeof(t)));
 	}
 }
