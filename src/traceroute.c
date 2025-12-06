@@ -53,7 +53,7 @@ static bool Pflag = 0;
 static bool pflag = 0;
 static size_t unreachable = 0;
 static int Popt = 0;
-static int dstport = 32768 + 666;
+static int dstport = 0;
 static bool _6flag = 0;
 static struct in6_addr _6opt = { 0 };
 static int first = 1;
@@ -149,6 +149,9 @@ callback(void *in, size_t n, void *arg)
 			if (memcmp((buf + 58), &target->ip.v4, 4) != 0)
 				return 0;
 			if (buf[35] != 3 && buf[35] != 2) {
+				if (vflag)
+					warnx("destination unreachable");
+
 				++unreachable;
 				return 0;
 			}
@@ -372,6 +375,7 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 {
 	u_char outpack[2048] = { 0 };
 	size_t len = 0, s;
+	u_short srcport;
 	ssize_t n;
 
 	len += 34;
@@ -398,7 +402,8 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 	}
 	len += datalen;
 
-	lid = random_u16();
+	lid = random_range(106, USHRT_MAX);
+	srcport = random_range(48, USHRT_MAX);
 
 	memcpy(outpack, ifd.dst, 6);
 	memcpy(outpack + 6, ifd.src, 6);
@@ -416,11 +421,15 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 		outpack[22] = (u_char)ttl;			  /* ttl */
 		outpack[23] = (u_char)proto;			  /* proto */
 		*(u_short *)(void *)(outpack + 24) = 0;		  /* chksum */
+
+		/* via in caelum */
 		for (n = 0; n < 4; n++)
-			outpack[26 + n] = ifd.srcip4[n], /* via in caelum */
-			    outpack[30 + n] = (ntohl(target->ip.v4.s_addr) >>
-						  (24 - 8 * n)) &
+			outpack[26 + n] = ifd.srcip4[n],
+				     outpack[30 + n] =
+					 (ntohl(target->ip.v4.s_addr) >>
+					     (24 - 8 * n)) &
 			    0xff;
+
 		*(u_short *)(outpack + 24) = in_cksum((u_short *)(outpack + 14),
 		    20);
 		break;
@@ -473,11 +482,12 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 	case IPPROTO_TCP:
 		*(u_short *)(outpack + s) = (Pflag) ?
 		    htons(Popt) :
-		    htons(random_u16()); /* src port */
+		    htons(srcport); /* src port */
 		*(u_short *)(outpack + s + 2) = (pflag) ?
 		    htons(dstport) :
 		    htons(dstport + hopid); /* dst port */
-		memcpy(outpack + s + 4, &(u_int) { htonl(random_u32()) },
+		memcpy(outpack + s + 4,
+		    &(u_int) { htonl(random_range(5, UINT_MAX)) },
 		    sizeof(u_int)); /* seq */
 		memcpy(outpack + s + 8, &(u_int) { htonl(0) },
 		    sizeof(u_int));			      /* ack */
@@ -509,14 +519,15 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 	case IPPROTO_SCTP:
 		*(u_short *)(outpack + s) = (Pflag) ?
 		    htons(Popt) :
-		    htons(random_u16()); /* src port */
+		    htons(srcport); /* src port */
 		*(u_short *)(outpack + s + 2) = (pflag) ?
 		    htons(dstport) :
 		    htons(dstport + hopid); /* dst port */
-		*(u_int *)(outpack + s + 4) = htonl(random_u32()); /* vtag */
-		*(u_int *)(outpack + s + 8) = htonl(0);		   /* chksum */
-		outpack[s + 12] = 0x0a;				   /* type */
-		outpack[s + 13] = 0;				   /* flags */
+		*(u_int *)(outpack + s + 4) = htonl(
+		    random_range(5, UINT_MAX));		/* vtag */
+		*(u_int *)(outpack + s + 8) = htonl(0); /* chksum */
+		outpack[s + 12] = 0x0a;			/* type */
+		outpack[s + 13] = 0;			/* flags */
 		*(u_short *)(outpack + s + 14) = htons(
 		    4 + (u_short)datalen); /* len */
 
@@ -531,7 +542,7 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 	case IPPROTO_UDP:
 		*(u_short *)(outpack + s) = (Pflag) ?
 		    htons(Popt) :
-		    htons(random_u16()); /* src port */
+		    htons(srcport); /* src port */
 		*(u_short *)(outpack + s + 2) = (pflag) ?
 		    htons(dstport) :
 		    htons(dstport + hopid); /* dst port */
@@ -561,7 +572,7 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 	case IPPROTO_UDPLITE:
 		*(u_short *)(outpack + s) = (Pflag) ?
 		    htons(Popt) :
-		    htons(random_u16()); /* src port */
+		    htons(srcport); /* src port */
 		*(u_short *)(outpack + s + 2) = (pflag) ?
 		    htons(dstport) :
 		    htons(dstport + hopid);		  /* dst port */
@@ -616,6 +627,7 @@ loop(ipaddr_t *ip)
 	tsum = 0;
 	tmax = LLONG_MIN;
 	nreceived = 0;
+	dstport = 33434; /* 32768 + 666 */
 	lid = 0;
 	prstats = 0;
 	tmin = LLONG_MAX;
@@ -910,6 +922,8 @@ main(int c, char **av)
 	c -= optind;
 	av += optind;
 	if_setup();
+
+	/* Good method.  */
 	random_init(dev_urandom, NULL);
 
 	if (c <= 0)
