@@ -53,6 +53,7 @@ static bool Pflag = 0;
 static bool pflag = 0;
 static size_t unreachable = 0;
 static int Popt = 0;
+static int popt = 0;
 static int dstport = 0;
 static bool _6flag = 0;
 static struct in6_addr _6opt = { 0 };
@@ -484,7 +485,7 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 		    htons(Popt) :
 		    htons(srcport); /* src port */
 		*(u_short *)(outpack + s + 2) = (pflag) ?
-		    htons(dstport) :
+		    htons(popt) :
 		    htons(dstport + hopid); /* dst port */
 		memcpy(outpack + s + 4,
 		    &(u_int) { htonl(random_range(5, UINT_MAX)) },
@@ -521,7 +522,7 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 		    htons(Popt) :
 		    htons(srcport); /* src port */
 		*(u_short *)(outpack + s + 2) = (pflag) ?
-		    htons(dstport) :
+		    htons(popt) :
 		    htons(dstport + hopid); /* dst port */
 		*(u_int *)(outpack + s + 4) = htonl(
 		    random_range(5, UINT_MAX));		/* vtag */
@@ -544,7 +545,7 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 		    htons(Popt) :
 		    htons(srcport); /* src port */
 		*(u_short *)(outpack + s + 2) = (pflag) ?
-		    htons(dstport) :
+		    htons(popt) :
 		    htons(dstport + hopid); /* dst port */
 		*(u_short *)(outpack + s + 4) = htons(
 		    8 + (u_short)datalen);		  /* len */
@@ -574,7 +575,7 @@ sendprobe(ipaddr_t *target, int proto, u_char *data, u_int datalen)
 		    htons(Popt) :
 		    htons(srcport); /* src port */
 		*(u_short *)(outpack + s + 2) = (pflag) ?
-		    htons(dstport) :
+		    htons(popt) :
 		    htons(dstport + hopid);		  /* dst port */
 		*(u_short *)(outpack + s + 4) = htons(0); /* checkcrg */
 		*(u_short *)(outpack + s + 6) = htons(0); /* chksum */
@@ -855,8 +856,8 @@ main(int c, char **av)
 			vflag = 1;
 			break;
 		case 'p':
-			if (!u_numarg(optarg, 0, USHRT_MAX, &dstport,
-				sizeof(dstport)))
+			if (!u_numarg(optarg, 0, USHRT_MAX, &popt,
+				sizeof(popt)))
 				errx(1, "invalid port \"%s\"", optarg);
 			pflag = 1;
 			break;
