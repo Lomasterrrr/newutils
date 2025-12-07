@@ -157,7 +157,7 @@ callback(void *in, size_t n, void *arg)
 				return 0;
 			}
 
-			if (ntohs((*(u_short *)(buf + 42 + 4))) != lid)
+			if (ntohs((*(u_short *)(buf + 46))) != lid)
 				return 0;
 
 			memcpy(&source.ip.v4, (buf + 58), 4);
@@ -181,7 +181,7 @@ callback(void *in, size_t n, void *arg)
 			return 0;
 		if (memcmp((buf + 30), ifd.srcip4, 4) != 0) /* ip dst */
 			return 0;
-		if (ntohs((*(u_short *)(buf + 42 + 4))) != lid)
+		if (ntohs((*(u_short *)(buf + 46))) != lid)
 			return 0;
 
 		memcpy(&source.ip.v4, (buf + 26), 4);
@@ -201,14 +201,14 @@ callback(void *in, size_t n, void *arg)
 			if ((ntohl(inner_ipv6_hdr[0]) & 0x000FFFFF) != lid)
 				return 0;
 			if (buf[55] == 4) {
-				memcpy(source.ip.v6.s6_addr, (buf + 69), 16);
+				memcpy(source.ip.v6.s6_addr, (buf + 86), 16);
 				reached = 1; /* AEEEE */
 				break;
 			}
 			/* However, the PARAM PROBLEM type with code 1 also
 			 * reports host availability with ICMPv6.  */
 		} else if (buf[54] == 4 && buf[55] == 1) {
-			memcpy(source.ip.v6.s6_addr, (buf + 69), 16);
+			memcpy(source.ip.v6.s6_addr, (buf + 86), 16);
 			reached = 1; /* AEEEE */
 			break;
 		} else if (buf[54] == 129) {
