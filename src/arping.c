@@ -652,6 +652,7 @@ main(int c, char **av)
 		case 'v':
 			vflag = 1;
 			break;
+		case 'h':
 		case '?':
 		default:
 			usage(av);

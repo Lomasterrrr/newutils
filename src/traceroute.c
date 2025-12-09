@@ -67,8 +67,8 @@ static ipaddr_t curtp = { 0 }; /* current target */
 static bool oflag = 0;
 static int oopt = 0;
 static size_t hopid = 0;
-static u_char *payload;
-static size_t payloadlen;
+static u_char *payload = NULL;
+static size_t payloadlen = 0;
 
 /*
  *		U S A G E
@@ -914,6 +914,7 @@ main(int c, char **av)
 				errx(1, "failed convert \"%s\" in mac", optarg);
 			Sflag = 1;
 			break;
+		case 'h':
 		case '?':
 		default:
 			usage(av);

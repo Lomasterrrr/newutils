@@ -287,13 +287,14 @@ u_long crc_c[256] = {
 	0xAD7D5351L,
 };
 
-#define CRC32C(c, d) (c = (c >> 8) ^ crc_c[(c ^ (d)) & 0xFF])
+#define CRC32C(c, d) ((c) = ((c) >> 8) ^ crc_c[((c) ^ (d)) & 0xff])
 
 u_long
 crc32c(u_char *ptr, size_t n)
 {
-	u_long t, b0, b1, b2, b3;
-	u_long crc32 = ~0L;
+	/* Dont't use ~0L.  */
+	u_long crc32 = 0xffffffffL, t;
+	u_char b0, b1, b2, b3;
 
 	for (size_t i = 0; i < n; i++)
 		CRC32C(crc32, ptr[i]);
