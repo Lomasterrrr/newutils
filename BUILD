@@ -10,7 +10,7 @@ case "$1" in
     	fi
 	;;
 
-	clean) rm -f *.o arping traceroute ;;
+	clean) rm -f *.o ping arping traceroute ;;
 
 	*) 
 	cc $CFLAGS -c src/base/*.c
