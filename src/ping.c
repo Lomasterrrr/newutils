@@ -205,9 +205,9 @@ callback(void *in, size_t n, void *arg)
 	case INFO_METHOD:
 	case ECHO_METHOD:
 	case TIMESTAMP_METHOD:
-		if (buf == 34 && buf[23] != IPPROTO_ICMP)
+		if (s == 34 && buf[23] != IPPROTO_ICMP)
 			return 0;
-		if (buf == 54 && buf[20] != IPPROTO_ICMPV6)
+		if (s == 54 && buf[20] != IPPROTO_ICMPV6)
 			return 0;
 		if (ntohs((*(u_short *)(buf + 40))) != ntransmitted - 1)
 			return 0;
