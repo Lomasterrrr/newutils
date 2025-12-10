@@ -205,15 +205,19 @@ callback(void *in, size_t n, void *arg)
 	case INFO_METHOD:
 	case ECHO_METHOD:
 	case TIMESTAMP_METHOD:
-		if (buf[(s == 34) ? 23 : 20] != IPPROTO_ICMP)
+		if (buf == 34 && buf[23] != IPPROTO_ICMP)
 			return 0;
-		if (cbdata->method == ECHO_METHOD && buf[s] != ((s == 34) ? 0 : 129))
+		if (buf == 54 && buf[20] != IPPROTO_ICMPV6)
 			return 0;
+		if (ntohs((*(u_short *)(buf + 40))) != ntransmitted - 1)
+			return 0;
+		if (cbdata->method == ECHO_METHOD &&
+		    buf[s] != ((s == 34) ? 0 : 129))
+			return 0;
+
 		if (cbdata->method == INFO_METHOD && buf[s] != 16)
 			return 0;
 		if (cbdata->method == TIMESTAMP_METHOD && buf[s] != 14)
-			return 0;
-		if (ntohs((*(u_short *)(buf + 40))) != ntransmitted - 1)
 			return 0;
 		break;
 	case UDP_METHOD:
@@ -437,8 +441,9 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 
 	switch (target->af) {
 	case AF_INET:
-		outpack[14] = (4 << 4) | (5 + (ipoptslen / 4)); /* version|ihl */
-		outpack[15] = (oflag) ? oopt : 0;	      /* tos */
+		outpack[14] = (4 << 4) |
+		    (5 + (ipoptslen / 4));	  /* version|ihl */
+		outpack[15] = (oflag) ? oopt : 0; /* tos */
 		*(u_short *)(outpack + 16) = htons(
 		    (u_short)(len - 14));		/* tot_len +optslen */
 		*(u_short *)(outpack + 18) = htons(id); /* id */
