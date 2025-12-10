@@ -209,7 +209,7 @@ callback(void *in, size_t n, void *arg)
 			return 0;
 		if (s == 54 && buf[20] != IPPROTO_ICMPV6)
 			return 0;
-		if (ntohs((*(u_short *)(buf + 40))) != ntransmitted - 1)
+		if (ntohs((*(u_short *)(buf + s + 6))) != ntransmitted - 1)
 			return 0;
 		if (cbdata->method == ECHO_METHOD &&
 		    buf[s] != ((s == 34) ? 0 : 129))
