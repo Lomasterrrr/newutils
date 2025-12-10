@@ -724,12 +724,12 @@ loop(ipaddr_t *ip)
 				continue;
 
 			/* We skip methods that are not suitable for us.  */
-			if (((method & TIMESTAMP_METHOD) ||
-				(method & INFO_METHOD)) &&
+			if ((((1U << j) & TIMESTAMP_METHOD) ||
+				((1U << j) & INFO_METHOD)) &&
 			    ip->af == AF_INET6) {
 				warnx("ipv6 not support %s method (skip)",
-				    (method & INFO_METHOD) ? "info" :
-							     "timestamp");
+				    ((1U << j) & INFO_METHOD) ? "info" :
+								"timestamp");
 				continue;
 			}
 
