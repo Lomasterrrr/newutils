@@ -207,8 +207,7 @@ callback(void *in, size_t n, void *arg)
 	case TIMESTAMP_METHOD:
 		if (buf[(s == 34) ? 23 : 20] != IPPROTO_ICMP)
 			return 0;
-		if (cbdata->method == ECHO_METHOD && buf[s] != (s == 34) ? 0 :
-									   129)
+		if (cbdata->method == ECHO_METHOD && buf[s] != ((s == 34) ? 0 : 129))
 			return 0;
 		if (cbdata->method == INFO_METHOD && buf[s] != 16)
 			return 0;
@@ -290,7 +289,7 @@ resolve_dns(ipaddr_t *target)
 {
 	struct sockaddr_in6 sin6 = { 0 };
 	struct sockaddr_in sin = { 0 };
-	static char res[4096 + 2];
+	static char res[4096 + 3];
 	char host[4096] = { 0 };
 
 	memset(res, 0, sizeof(res));
@@ -438,7 +437,7 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 
 	switch (target->af) {
 	case AF_INET:
-		outpack[14] = (4 << 4) | 5 + (ipoptslen / 4); /* version|ihl */
+		outpack[14] = (4 << 4) | (5 + (ipoptslen / 4)); /* version|ihl */
 		outpack[15] = (oflag) ? oopt : 0;	      /* tos */
 		*(u_short *)(outpack + 16) = htons(
 		    (u_short)(len - 14));		/* tot_len +optslen */
