@@ -664,11 +664,12 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id, ipaddr_t *from)
 						    " [???]") :
 		"");
 
-	printf(" id=%zu", id);
 	if (proto == IPPROTO_ICMP || proto == IPPROTO_ICMPV6)
 		printf(" icmp_seq=%hu",
 		    ntohs((*(u_short *)(buf +
 			((proto == IPPROTO_ICMP) ? 40 : 60)))));
+	else
+		printf(" id=%zu", id);
 	if (rtt)
 		printf(" time=%s", timefmt(rtt, t, sizeof(t)));
 
@@ -722,6 +723,16 @@ loop(ipaddr_t *ip)
 			if (!(method & (1U << j)))
 				continue;
 
+			/* We skip methods that are not suitable for us.  */
+			if (((method & TIMESTAMP_METHOD) ||
+				(method & INFO_METHOD)) &&
+			    ip->af == AF_INET6) {
+				warnx("ipv6 not support %s method (skip)",
+				    (method & INFO_METHOD) ? "info" :
+							     "timestamp");
+				continue;
+			}
+
 			/* We send the appropriate package */
 			pinger(ip, (1U << j), payload, (u_int)payloadlen,
 			    xipopts, (u_int)xipoptslen);
@@ -753,8 +764,8 @@ loop(ipaddr_t *ip)
 
 				/* We display data about the package we have
 				 * successfully received.  */
-				pr_pack(buf, n, tvrtt(&ts_s, &ts_e),
-				    ntransmitted, &cbdata.from);
+				pr_pack(buf, n, tvrtt(&ts_s, &ts_e), snd,
+				    &cbdata.from);
 			}
 		}
 		++snd; /* One request has been completed.  */
