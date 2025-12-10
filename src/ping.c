@@ -26,13 +26,14 @@
 #include "../include/base.h"
 
 /*	Ping methods.	*/
-#define ECHO_METHOD	 (1 << 0)
-#define SYN_METHOD	 (1 << 1)
-#define ACK_METHOD	 (1 << 2)
-#define INFO_METHOD	 (1 << 3)
-#define TIMESTAMP_METHOD (1 << 4)
-#define UDP_METHOD	 (1 << 5)
-#define COOKIE_METHOD	 (1 << 6)
+#define ECHO_METHOD	 (1U << 0)
+#define SYN_METHOD	 (1U << 1)
+#define ACK_METHOD	 (1U << 2)
+#define INFO_METHOD	 (1U << 3)
+#define TIMESTAMP_METHOD (1U << 4)
+#define UDP_METHOD	 (1U << 5)
+#define COOKIE_METHOD	 (1U << 6)
+#define INIT_METHOD	 (1U << 7)
 
 static bool Iflag = 0;
 static char *Iopt = NULL;
@@ -126,6 +127,7 @@ usage(char **av)
 	fputs("  -Y\t\tenable tcp syn ping method\n", stderr);
 	fputs("  -U\t\tenable udp ping method\n", stderr);
 	fputs("  -C\t\tenable sctp cookie ping method\n", stderr);
+	fputs("  -V\t\tenable sctp init ping method\n", stderr);
 	fputs("  -p <port>\tset destination port\n", stderr);
 	fputs("  -P <port>\tset source (your) port\n", stderr);
 	fputs("  -H <hex>\tset payload data in hex numbers\n", stderr);
@@ -158,64 +160,81 @@ callback(void *in, size_t n, void *arg)
 {
 	cbdata_t *cbdata = (cbdata_t *)arg;
 	u_char *buf = (u_char *)in;
+	size_t s;
+
+	switch (cbdata->target.af) {
+	case AF_INET:
+		if (n <= 34)
+			return 0;
+		if (ntohs(*(u_short *)(buf + 12)) != 0x0800)
+			return 0;
+		if (memcmp((buf + 30), ifd.srcip4, 4) != 0)
+			return 0;
+		if (memcmp((buf + 26), &cbdata->target.ip.v4, 4) != 0)
+			return 0;
+		s = 34;
+		break;
+	case AF_INET6:
+		if (n <= 54)
+			return 0;
+		if (ntohs(*(u_short *)(buf + 12)) != 0x86dd)
+			return 0;
+		if (memcmp((buf + 38), ifd.srcip6, 16) != 0)
+			return 0;
+		if (memcmp((buf + 22), &cbdata->target.ip.v6, 16) != 0)
+			return 0;
+		s = 54;
+		break;
+	}
+
+	switch (cbdata->method) {
+	case SYN_METHOD:
+	case ACK_METHOD:
+		if (buf[(s == 34) ? 23 : 20] != IPPROTO_TCP)
+			return 0;
+
+		/* SYN/ACK or RST.  */
+		if (buf[s + 13] != 18 && buf[s + 13] != 1)
+			return 0;
+	ports:
+		if (ntohs(*(u_short *)(buf + s)) != cbdata->dstport)
+			return 0;
+		if (ntohs(*(u_short *)(buf + s + 2)) != cbdata->srcport)
+			return 0;
+		break;
+	case INFO_METHOD:
+	case ECHO_METHOD:
+	case TIMESTAMP_METHOD:
+		if (buf[(s == 34) ? 23 : 20] != IPPROTO_ICMP)
+			return 0;
+		if (cbdata->method == ECHO_METHOD && buf[s] != (s == 34) ? 0 :
+									   129)
+			return 0;
+		if (cbdata->method == INFO_METHOD && buf[s] != 16)
+			return 0;
+		if (cbdata->method == TIMESTAMP_METHOD && buf[s] != 14)
+			return 0;
+		if (ntohs((*(u_short *)(buf + 40))) != ntransmitted - 1)
+			return 0;
+		break;
+	case UDP_METHOD:
+		if (buf[(s == 34) ? 23 : 20] != IPPROTO_UDP)
+			return 0;
+		goto ports;
+	case INIT_METHOD:
+	case COOKIE_METHOD:
+		if (buf[(s == 34) ? 23 : 20] != IPPROTO_SCTP)
+			return 0;
+		goto ports;
+	}
 
 	cbdata->from.af = cbdata->target.af;
 	switch (cbdata->target.af) {
 	case AF_INET:
-		if (n < 34)
-			return 0;
-		if (ntohs(*(u_short *)(buf + 12)) != 0x0800)
-			return 0;
-
-		if (memcmp((buf + 26), &cbdata->target.ip.v4, 4) != 0)
-			return 0;
-		if (memcmp((buf + 30), ifd.srcip4, 4) != 0)
-			return 0;
-
-		switch (cbdata->method) {
-		case SYN_METHOD:
-		case ACK_METHOD:
-			if (buf[23] != IPPROTO_TCP)
-				return 0;
-
-			/* SYN/ACK or RST.  */
-			if (buf[47] != 18 && buf[47] != 1)
-				return 0;
-		ports:
-			if (ntohs(*(u_short *)(buf + 34)) != cbdata->dstport)
-				return 0;
-			if (ntohs(*(u_short *)(buf + 36)) != cbdata->srcport)
-				return 0;
-			break;
-		case INFO_METHOD:
-		case ECHO_METHOD:
-		case TIMESTAMP_METHOD:
-			if (buf[23] != IPPROTO_ICMP)
-				return 0;
-			if (cbdata->method == ECHO_METHOD && buf[34] != 0)
-				return 0;
-			if (cbdata->method == INFO_METHOD && buf[34] != 16)
-				return 0;
-			if (cbdata->method == TIMESTAMP_METHOD && buf[34] != 14)
-				return 0;
-			if (ntohs((*(u_short *)(buf + 40))) != ntransmitted - 1)
-				return 0;
-			break;
-		case UDP_METHOD:
-			if (buf[23] != IPPROTO_UDP)
-				return 0;
-			goto ports;
-		case COOKIE_METHOD:
-			if (buf[23] != IPPROTO_SCTP)
-				return 0;
-			goto ports;
-		}
-
 		memcpy(&cbdata->from.ip.v4, buf + 26, 4);
 		break;
 	case AF_INET6:
-		if (n < 54)
-			return 0;
+		memcpy(&cbdata->from.ip.v6, buf + 22, 16);
 		break;
 	}
 
@@ -281,7 +300,7 @@ resolve_dns(ipaddr_t *target)
 		sin.sin_addr = target->ip.v4;
 		if (getnameinfo((struct sockaddr *)&sin, sizeof(sin), host,
 			sizeof(host), NULL, 0, 0) == 0) {
-			snprintf(res, sizeof(res), "(%s)", host);
+			snprintf(res, sizeof(res), " (%s)", host);
 			return res;
 		}
 		break;
@@ -290,7 +309,7 @@ resolve_dns(ipaddr_t *target)
 		sin6.sin6_addr = target->ip.v6;
 		if (getnameinfo((struct sockaddr *)&sin6, sizeof(sin6), host,
 			sizeof(host), NULL, 0, 0) == 0) {
-			snprintf(res, sizeof(res), "(%s)", host);
+			snprintf(res, sizeof(res), " (%s)", host);
 			return res;
 		}
 		break;
@@ -394,9 +413,13 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 		proto = IPPROTO_UDP;
 		len += 8;
 		break;
+	case INIT_METHOD:
+		proto = IPPROTO_SCTP;
+		len += 32; /* init chunk 12 */
+		break;
 	case COOKIE_METHOD:
 		proto = IPPROTO_SCTP;
-		len += 16; /* sctp + cookie chunk */
+		len += 16;
 		break;
 	}
 
@@ -540,21 +563,37 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 	case IPPROTO_SCTP:
 		*(u_short *)(outpack + s) = htons(srcport);	/* src port */
 		*(u_short *)(outpack + s + 2) = htons(dstport); /* dst port */
-		*(u_int *)(outpack + s + 4) = htonl(
-		    random_range(5, UINT_MAX));		/* vtag */
-		*(u_int *)(outpack + s + 8) = htonl(0); /* chksum */
-		outpack[s + 12] = 0x0a;			/* type */
-		outpack[s + 13] = 0;			/* flags */
+		*(u_int *)(outpack + s + 4) = htonl((method == INIT_METHOD) ?
+			0 :
+			random_range(5, UINT_MAX));		    /* vtag */
+		*(u_int *)(outpack + s + 8) = htonl(0);		    /* chksum */
+		outpack[s + 12] = (method == INIT_METHOD) ? 1 : 10; /* type */
+		outpack[s + 13] = 0;				    /* flags */
 		*(u_short *)(outpack + s + 14) = htons(
-		    4 + (u_short)datalen); /* len */
+		    ((method == INIT_METHOD) ?
+			    20 :
+			    (4 + (u_short)datalen))); /* len */
 
-		if (data && datalen)
+		if (method == INIT_METHOD) {
+			*(u_int *)(outpack + s + 16) = htonl(
+			    random_range(5, UINT_MAX)); /* itag */
+			*(u_int *)(outpack + s + 20) = htonl(
+			    random_range(5, UINT_MAX)); /* arwnd */
+			*(u_short *)(outpack + s + 24) = htonl(
+			    random_range(5, USHRT_MAX)); /* nos */
+			*(u_short *)(outpack + s + 26) = htonl(
+			    random_range(5, USHRT_MAX)); /* nis */
+			*(u_int *)(outpack + s + 28) = htonl(
+			    random_range(5, UINT_MAX)); /* itsn */
+		} else if (data && datalen)
 			memcpy(outpack + s + 16, data, datalen);
 
 		/* final checksum */
-		*(u_int *)(outpack + s + 8) = htonl(
-		    ((_3flag) ? adler32(1, (outpack + s), 16 + datalen) :
-				crc32c((outpack + s), 16 + datalen)));
+		*(u_int *)(outpack + s + 8) = htonl(((_3flag) ?
+			adler32(1, (outpack + s),
+			    (method == INIT_METHOD) ? 32 : (16 + datalen)) :
+			crc32c((outpack + s),
+			    (method == INIT_METHOD) ? 32 : (16 + datalen))));
 		break;
 	case IPPROTO_UDP:
 		*(u_short *)(outpack + s) = htons(srcport);	/* src port */
@@ -608,24 +647,24 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id, ipaddr_t *from)
 	int proto = (from->af == AF_INET) ? buf[23] : buf[20];
 	char t[65535] = { 0 };
 
-	printf("%zu bytes from %s %s [%s]:", n,
+	printf("%zu bytes from %s%s%s:", n, ipaddr_ntoa(from),
 
-	    ipaddr_ntoa(from), resolve_dns(from),
+	    (!Rflag) ? resolve_dns(from) : "",
 
-	    (proto == IPPROTO_ICMP)	  ? "icmp" :
-		(proto == IPPROTO_ICMPV6) ? "icmp6" :
-		(proto == IPPROTO_TCP)	  ? "tcp" :
-		(proto == IPPROTO_UDP)	  ? "udp" :
-		(proto == IPPROTO_SCTP)	  ? "sctp" :
-					    "???");
+	    (method & (method - 1)) ?
+		((proto == IPPROTO_ICMP)	  ? " [icmp]" :
+			(proto == IPPROTO_ICMPV6) ? " [icmp6]" :
+			(proto == IPPROTO_TCP)	  ? " [tcp]" :
+			(proto == IPPROTO_UDP)	  ? " [udp]" :
+			(proto == IPPROTO_SCTP)	  ? " [sctp]" :
+						    " [???]") :
+		"");
 
+	printf(" id=%zu", id);
 	if (proto == IPPROTO_ICMP || proto == IPPROTO_ICMPV6)
 		printf(" icmp_seq=%hu",
 		    ntohs((*(u_short *)(buf +
 			((proto == IPPROTO_ICMP) ? 40 : 60)))));
-	else
-		printf(" id=%zu", id);
-
 	if (rtt)
 		printf(" time=%s", timefmt(rtt, t, sizeof(t)));
 
@@ -651,8 +690,8 @@ loop(ipaddr_t *ip)
 	tmin = LLONG_MAX;
 	curtp = *ip;
 
-	printf("PING %s %s: %zu data bytes\n", ipaddr_ntoa(ip),
-	    ((!Rflag) ? resolve_dns(ip) : "???"), payloadlen);
+	printf("PING %s%s: %zu data bytes\n", ipaddr_ntoa(ip),
+	    ((!Rflag) ? resolve_dns(ip) : ""), payloadlen);
 
 	/* These counters store the number of responses and
 	 * requests; here, one request consists of sending
@@ -779,10 +818,10 @@ main(int c, char **av)
 		usage(av);
 
 	signal(SIGINT, finish);
-	while (
-	    (ch = getopt(c, av,
-		 "I:s:6:S:i:w:n:4rdO:z:T:EFMKYUCp:P:H:a:l:3AfoqN:vhR")) != -1) {
-		/* z D f o q */
+	while ((ch = getopt(c, av,
+		    "I:s:6:S:i:w:n:4rdO:z:T:EFMKYUCp:P:H:a:l:3AfoqN:vhRV")) !=
+	    -1) {
+		/* z D f o q V */
 		switch (ch) {
 		case 'I':
 			Iflag = 1;
@@ -794,10 +833,13 @@ main(int c, char **av)
 		case 'A':
 			method = ECHO_METHOD | ECHO_METHOD | ACK_METHOD |
 			    INFO_METHOD | TIMESTAMP_METHOD | UDP_METHOD |
-			    COOKIE_METHOD;
+			    COOKIE_METHOD | INIT_METHOD;
 			break;
 		case 'E':
 			method |= ECHO_METHOD;
+			break;
+		case 'V':
+			method |= INIT_METHOD;
 			break;
 		case 'F':
 			method |= INFO_METHOD;
