@@ -730,6 +730,7 @@ loop(ipaddr_t *ip)
 				warnx("ipv6 not support %s method (skip)",
 				    (method & INFO_METHOD) ? "info" :
 							     "timestamp");
+				++j;
 				continue;
 			}
 
