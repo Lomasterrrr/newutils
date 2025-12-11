@@ -795,6 +795,10 @@ main(int c, char **av)
 		usage(av);
 
 	signal(SIGINT, finish);
+
+	/* Good method.  */
+	random_init(dev_urandom, NULL);
+
 	while ((ch = getopt(c, av,
 		    "I:s:6:o:S:i:P:p:w:m:f:n:H:a:l:v4rdAEYULCh")) != -1) {
 		switch (ch) {
@@ -924,9 +928,6 @@ main(int c, char **av)
 	c -= optind;
 	av += optind;
 	if_setup();
-
-	/* Good method.  */
-	random_init(dev_urandom, NULL);
 
 	if (c <= 0)
 		errx(1, "no targets specified");

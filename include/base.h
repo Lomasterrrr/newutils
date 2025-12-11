@@ -194,4 +194,9 @@ void p128(__uint128_t v);
 /* Ascii hex to real hex.  */
 u_char *hex_ahtoh(char *txt, size_t *hexlen);
 
+/* Get offset to real payload; the buffer and length should
+ * be specified without taking into account the datalink
+ * header.  */
+ssize_t ipv6_offset(u_char *buf, size_t n);
+
 #endif

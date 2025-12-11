@@ -344,3 +344,67 @@ hex_ahtoh(char *txt, size_t *hexlen)
 	*hexlen = j;
 	return dst;
 }
+
+ssize_t
+ipv6_offset(u_char *buf, size_t n)
+{
+	if (!buf || n < 40)
+		return -1;
+
+	ssize_t off = 40, tmp;
+	u_char nxt = buf[6];
+
+	for (;;) {
+		switch (nxt) {
+		case 0:
+		case 50:
+		case 135:
+		case 43:
+		case 51:
+		case 44:
+		case 60:
+		case 139:
+		case 140:
+			break;
+		default:
+			return off;
+		}
+
+		if (off + 2 > n)
+			return -1;
+
+		switch (nxt) {
+		case 44: /* FRAGMENT */
+			if (off + 8 > n)
+				return -1;
+			nxt = buf[off];
+			off += 8;
+			continue;
+		case 51: { /* AH */
+			tmp = (buf[off + 1] + 2) * 4;
+			if (tmp < 8)
+				return -1;
+			if (off + tmp > n)
+				return -1;
+
+			nxt = buf[off];
+			off += tmp;
+			continue;
+		}
+		case 50: /* ESP (needs to be decrypted) */
+			return off;
+		}
+
+		tmp = (buf[off + 1] + 1) * 8;
+		if (tmp < 8)
+			return -1;
+		if (off + tmp > n)
+			return -1;
+
+		nxt = buf[off];
+		off += tmp;
+	}
+
+	/* NOTREACHED */
+	return -1;
+}
