@@ -214,7 +214,7 @@ callback(void *in, size_t n, void *arg)
 
 		/* ICMPV6 error received.  */
 		if (buf[20] == IPPROTO_ICMPV6 && buf[s] != 129) {
-			if (memcmp((buf + s + 8 + 38), ifd.srcip4, 4) != 0)
+			if (memcmp((buf + s + 16), ifd.srcip6, 16) != 0)
 				return 0;
 			cbdata->err = ((u_short)buf[s] << 8) | buf[s + 1];
 			goto out;
