@@ -701,6 +701,7 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id, ipaddr_t *from,
 {
 	int proto = (from->af == AF_INET) ? buf[23] : buf[20];
 	char t[65535] = { 0 };
+	ssize_t s = 0;
 
 	printf("%zu bytes from %s%s%s:", n, ipaddr_ntoa(from),
 
@@ -715,11 +716,13 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id, ipaddr_t *from,
 						    " [???]") :
 		"");
 
+	s = (from->af == AF_INET) ? ((buf[14] & 0x0f) * 4) + 14 :
+				    (ipv6_offset(buf + 14, n - 14) + 14);
+
 	if (!err) {
 		if (proto == IPPROTO_ICMP || proto == IPPROTO_ICMPV6)
 			printf(" icmp_seq=%hu",
-			    ntohs((*(u_short *)(buf +
-				((proto == IPPROTO_ICMP) ? 40 : 60)))));
+			    ntohs((*(u_short *)(buf + s + 6))));
 		else
 			printf(" id=%zu", id);
 	} else if (proto == IPPROTO_ICMP) {

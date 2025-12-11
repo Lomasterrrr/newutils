@@ -128,9 +128,9 @@ callback(void *in, size_t n, void *arg)
 {
 	ipaddr_t *target = (ipaddr_t *)arg;
 	u_char *buf = (u_char *)in;
+	ssize_t s = 0;
 
 	source.af = target->af;
-
 	switch (target->af) {
 	case AF_INET:
 		if (n < 42)
@@ -140,16 +140,18 @@ callback(void *in, size_t n, void *arg)
 		if (buf[23] != IPPROTO_ICMP) /* only icmp packets */
 			return 0;
 
+		s = ((buf[14] & 0x0f) * 4) + 14;
+
 		/* We can conclude whether the host has been reached
 		 * on the current TTL from the fact that we received
 		 * a DEST UNREACHED message indicating that the
 		 * protocol or port is unavailable.  */
-		if (buf[34] == 3) {
-			if (memcmp((buf + 54), ifd.srcip4, 4) != 0)
+		if (buf[s] == 3) {
+			if (memcmp((buf + s + 20), ifd.srcip4, 4) != 0)
 				return 0;
-			if (memcmp((buf + 58), &target->ip.v4, 4) != 0)
+			if (memcmp((buf + s + 24), &target->ip.v4, 4) != 0)
 				return 0;
-			if (buf[35] != 3 && buf[35] != 2) {
+			if (buf[s + 1] != 3 && buf[s + 1] != 2) {
 				if (vflag)
 					warnx("destination unreachable");
 
@@ -157,31 +159,31 @@ callback(void *in, size_t n, void *arg)
 				return 0;
 			}
 
-			if (ntohs((*(u_short *)(buf + 46))) != lid)
+			if (ntohs((*(u_short *)(buf + s + 12))) != lid)
 				return 0;
 
-			memcpy(&source.ip.v4, (buf + 58), 4);
+			memcpy(&source.ip.v4, (buf + s + 24), 4);
 			reached = 1; /* AEEEE */
 			break;
 		}
 		/* Or coming from ICMP_ECHO_REPLY, but only when the
 		 * ID and seq match.  */
-		else if (buf[34] == 0) {
-			if (ntohs((*(u_short *)(buf + 38))) != lid)
+		else if (buf[s] == 0) {
+			if (ntohs((*(u_short *)(buf + s + 4))) != lid)
 				return 0;
-			if (ntohs((*(u_short *)(buf + 40))) != hopid)
+			if (ntohs((*(u_short *)(buf + s + 6))) != hopid)
 				return 0;
 
 			memcpy(&source.ip.v4, (buf + 26), 4);
 			reached = 1; /* AEEEE */
 			break;
 		}
-		if (buf[34] != /* Time Exceed */ 11 &&
-		    buf[35] == /* Intrans */ 0)
+		if (buf[s] != /* Time Exceed */ 11 &&
+		    buf[s + 1] == /* Intrans */ 0)
 			return 0;
 		if (memcmp((buf + 30), ifd.srcip4, 4) != 0) /* ip dst */
 			return 0;
-		if (ntohs((*(u_short *)(buf + 46))) != lid)
+		if (ntohs((*(u_short *)(buf + s + 12))) != lid)
 			return 0;
 
 		memcpy(&source.ip.v4, (buf + 26), 4);
@@ -194,27 +196,33 @@ callback(void *in, size_t n, void *arg)
 		if (buf[20] != IPPROTO_ICMPV6) /* only icmp6 packets */
 			return 0;
 
+		if ((s = ipv6_offset(buf + 14, n - 14)) == -1)
+			return 0;
+		s += 14;
+
 		/* The same as with IPv4, but there is no protocol
 		 * error.  */
-		if (buf[54] == 1) {
-			const u_int *inner_ipv6_hdr = (const u_int *)(buf + 62);
+		if (buf[s] == 1) {
+			const u_int *inner_ipv6_hdr = (const u_int *)(buf + s +
+			    8);
 			if ((ntohl(inner_ipv6_hdr[0]) & 0x000FFFFF) != lid)
 				return 0;
-			if (buf[55] == 4) {
-				memcpy(source.ip.v6.s6_addr, (buf + 86), 16);
+			if (buf[s + 1] == 4) {
+				memcpy(source.ip.v6.s6_addr, (buf + s + 32),
+				    16);
 				reached = 1; /* AEEEE */
 				break;
 			}
 			/* However, the PARAM PROBLEM type with code 1 also
 			 * reports host availability with ICMPv6.  */
-		} else if (buf[54] == 4 && buf[55] == 1) {
-			memcpy(source.ip.v6.s6_addr, (buf + 86), 16);
+		} else if (buf[s] == 4 && buf[s + 1] == 1) {
+			memcpy(source.ip.v6.s6_addr, (buf + s + 32), 16);
 			reached = 1; /* AEEEE */
 			break;
-		} else if (buf[54] == 129) {
-			if (ntohs((*(u_short *)(buf + 58))) != lid)
+		} else if (buf[s] == 129) {
+			if (ntohs((*(u_short *)(buf + s + 4))) != lid)
 				return 0;
-			if (ntohs((*(u_short *)(buf + 60))) != hopid)
+			if (ntohs((*(u_short *)(buf + s + 6))) != hopid)
 				return 0;
 
 			memcpy(source.ip.v6.s6_addr, (buf + 22), 16);
@@ -222,13 +230,13 @@ callback(void *in, size_t n, void *arg)
 			break;
 		}
 
-		if (buf[54] != /* Time Exceed */ 3 &&
-		    buf[55] == /* Intrans */ 0)
+		if (buf[s] != /* Time Exceed */ 3 &&
+		    buf[s + 1] == /* Intrans */ 0)
 			return 0;
 		if (memcmp((buf + 38), ifd.srcip6, 16) != 0) /* ip dst */
 			return 0;
 
-		const u_int *inner_ipv6_hdr = (const u_int *)(buf + 62);
+		const u_int *inner_ipv6_hdr = (const u_int *)(buf + s + 8);
 		if ((ntohl(inner_ipv6_hdr[0]) & 0x000FFFFF) != lid)
 			return 0;
 
