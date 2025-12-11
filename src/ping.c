@@ -210,6 +210,7 @@ callback(void *in, size_t n, void *arg)
 		/* IPv6 header + Extended headers + MAC header length.  */
 		if ((s = ipv6_offset(buf + 14, n - 14)) == -1)
 			return 0;
+		s += 14;
 
 		/* ICMPV6 error received.  */
 		if (buf[20] == IPPROTO_ICMPV6 && buf[s] != 129) {
