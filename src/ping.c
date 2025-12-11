@@ -60,6 +60,11 @@ static bool Rflag = 0;
 static bool _3flag = 0;
 static bool Pflag = 0;
 static bool pflag = 0;
+static bool Dflag = 0;
+static size_t Dopt = 0;
+static bool zflag = 0;
+static bool fflag = 0;
+static int zopt = 0;
 static bool Nflag = 0;
 static int dstport = 80; /* default 80 */
 static int srcport = 0;
@@ -68,8 +73,6 @@ static struct in6_addr _6opt = { 0 };
 static int ttl = 0;
 static int off = 0;
 static ipaddr_t curtp = { 0 }; /* current target */
-static bool oflag = 0;
-static int oopt = 0;
 static u_char *payload = NULL;
 static size_t payloadlen = 0;
 static u_char *xipopts = NULL;
@@ -119,6 +122,7 @@ usage(char **av)
 	fputs("  -i <time>\tset interval between packets; ex: 300ms\n", stderr);
 	fputs("  -w <time>\tset wait time or timeout; ex: 2s, 10ms\n", stderr);
 	fputs("  -n <count>\tset your num of try\n", stderr);
+	fputs("  -D <num>\tset your ping preload\n", stderr);
 	fputs("  -N <count>\tset how many packets to recv (replies)\n", stderr);
 
 	/* IP options */
@@ -152,7 +156,6 @@ usage(char **av)
 	fputs("  -A\t\tenable all ping methods\n", stderr);
 	fputs("  -f\t\tflood ping\n", stderr);
 	fputs("  -o\t\texit after first reply packet\n", stderr);
-	fputs("  -q\t\tenable quiet output\n", stderr);
 	fputs("  -R\t\tno resolve dns\n", stderr);
 	fputs("  -v\t\tshow some debugging information\n", stderr);
 	fputs("  -h\t\tshow this help message and exit\n", stderr);
@@ -488,7 +491,7 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 	case AF_INET:
 		outpack[14] = (4 << 4) |
 		    (5 + (ipoptslen / 4));	  /* version|ihl */
-		outpack[15] = (oflag) ? oopt : 0; /* tos */
+		outpack[15] = (zflag) ? zopt : 0; /* tos */
 		*(u_short *)(outpack + 16) = htons(
 		    (u_short)(len - 14));		/* tot_len +optslen */
 		*(u_short *)(outpack + 18) = htons(id); /* id */
@@ -513,8 +516,8 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 		break;
 	case AF_INET6:
 		outpack[14] = ((0x06 << 4) |
-		    ((((oflag) ? oopt : 0) & 0xF0) >> 4)); /* version|tc */
-		outpack[15] = (u_char)(((((oflag) ? oopt : 0) & 0x0F)
+		    ((((zflag) ? zopt : 0) & 0xF0) >> 4)); /* version|tc */
+		outpack[15] = (u_char)(((((zflag) ? zopt : 0) & 0x0F)
 					   << 4) | /* flowlabel */
 		    ((id & 0xF0000) >> 16));
 		outpack[16] = ((id & 0x0FF00) >> 8),
@@ -920,6 +923,21 @@ loop(ipaddr_t *ip)
 	printf("PING %s%s: %zu data bytes\n", ipaddr_ntoa(ip),
 	    ((!Rflag) ? resolve_dns(ip) : ""), payloadlen);
 
+	/* If preload is specified, perform the corresponding
+	 * actions for each enabled method.  */
+	if (Dflag) {
+		for (u_int j = 0; j < 32; ++j) {
+			if (!(method & (1U << j)))
+				continue;
+			snd = Dopt + 1;
+			while (--snd)
+				pinger(ip, (1U << j), payload,
+				    (u_int)payloadlen, xipopts,
+				    (u_int)xipoptslen, xtcpopts,
+				    (u_int)xtcpoptslen);
+		}
+	}
+
 	for (;;) {
 		struct timeval ts_s, ts_e;
 		u_char buf[65535] = { 0 };
@@ -967,10 +985,13 @@ loop(ipaddr_t *ip)
 			/* We accept it and output the corresponding package. */
 			if ((n = dlt_recv_cb(dlt, buf, sizeof(buf), callback,
 				 (void *)&cbdata, wait, &ts_s, &ts_e)) == -1) {
-				if (errno == 0)
-					warnx("no response received (timeout)");
-				else
-					warn("recv");
+				if (!fflag) {
+					if (errno == 0)
+						warnx(
+						    "no response received (timeout)");
+					else
+						warn("recv");
+				}
 			} else {
 				++nreceived;
 				if (!rflg) {
@@ -978,10 +999,13 @@ loop(ipaddr_t *ip)
 					++rcv; /* One response was received. */
 				}
 
-				/* We display data about the package we have
-				 * successfully received.  */
-				pr_pack(buf, n, tvrtt(&ts_s, &ts_e), snd,
-				    &cbdata.from, cbdata.err);
+				if (!fflag)
+					/* We display data about the package we
+					 * have successfully received.  */
+					pr_pack(buf, n, tvrtt(&ts_s, &ts_e),
+					    snd, &cbdata.from, cbdata.err);
+				else
+					putchar('.'), fflush(stdout);
 			}
 		}
 		++snd; /* One request has been completed.  */
@@ -1053,14 +1077,35 @@ main(int c, char **av)
 	/* Good method.  */
 	random_init(dev_urandom, NULL);
 
-	while ((ch = getopt(c, av,
-		    "I:s:6:S:i:w:n:4rdO:z:T:EFMKYUCp:P:H:a:l:3AfoqN:vhRVG:")) !=
+	while (
+	    (ch = getopt(c, av,
+		 "D:I:s:6:S:i:w:n:4rdO:z:T:EFMKYUCp:P:H:a:l:3AfoN:vhRVG:")) !=
 	    -1) {
-		/* z D f o q */
 		switch (ch) {
+		case 'D':
+			if (!u_numarg(optarg, 0, UCHAR_MAX, &Dopt,
+				sizeof(Dopt)))
+				errx(1, "invalid preload \"%s\"", optarg);
+			Dflag = 1;
+			break;
 		case 'I':
 			Iflag = 1;
 			Iopt = optarg;
+			break;
+		case 'f':
+			fflag = 1;
+			interval = 0;
+			npackets = 1000000;
+			wait = 100 * 1000000L; /* 100 ms */
+			break;
+		case 'o':
+			npackets = 1, Nflag = 1;
+			break;
+		case 'z':
+			if (!u_numarg(optarg, 0, UCHAR_MAX, &zopt,
+				sizeof(zopt)))
+				errx(1, "invalid tos \"%s\"", optarg);
+			zflag = 1;
 			break;
 		case '3':
 			_3flag = 1;
@@ -1211,6 +1256,11 @@ main(int c, char **av)
 	c -= optind;
 	av += optind;
 	if_setup();
+
+	if (fflag) {
+		random_init(splitmix64, splitmix64_seed);
+		random_srand(time(NULL));
+	}
 
 	if (!method)
 		method = ECHO_METHOD;
