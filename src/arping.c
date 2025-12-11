@@ -384,8 +384,7 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id)
 			    (!pflg) ? "for " : " ", buf[32], buf[33], buf[34],
 			    buf[35], buf[36], buf[37]);
 
-		printf(" id=%zu time=%s\n", nreceived,
-		    timefmt(rtt, t, sizeof(t)));
+		printf(" id=%zu time=%s\n", id, timefmt(rtt, t, sizeof(t)));
 	}
 }
 
@@ -514,7 +513,7 @@ loop(struct in_addr *ip)
 
 			if (eflag || Vflag)
 				pr_pack(outpack, sizeof(outpack), 0, 0);
-			pr_pack(buf, n, tvrtt(&ts_s, &ts_e), ntransmitted);
+			pr_pack(buf, n, tvrtt(&ts_s, &ts_e), nreceived - 1);
 		}
 
 		if (((Nflag) ? nreceived : ntransmitted) == npackets)

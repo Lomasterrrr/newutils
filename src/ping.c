@@ -700,34 +700,119 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
  */
 inline static void
 pr_pack(u_char *buf, size_t n, long long rtt, size_t id, ipaddr_t *from,
-    u_short err)
+    u_short err, char *hostname)
 {
 	int proto = (from->af == AF_INET) ? buf[23] : buf[20];
 	char t[65535] = { 0 };
 	ssize_t s = 0;
 
-	printf("%zu bytes from %s%s%s:", n, ipaddr_ntoa(from),
-
-	    (!Rflag) ? resolve_dns(from) : "",
+	printf("%zu bytes from %s%s%s:", n,
 
 	    (method & (method - 1)) ?
-		((proto == IPPROTO_ICMP)	  ? " [icmp]" :
-			(proto == IPPROTO_ICMPV6) ? " [icmp6]" :
-			(proto == IPPROTO_TCP)	  ? " [tcp]" :
-			(proto == IPPROTO_UDP)	  ? " [udp]" :
-			(proto == IPPROTO_SCTP)	  ? " [sctp]" :
-						    " [???]") :
-		"");
+		((proto == IPPROTO_ICMP)	  ? "ICMP " :
+			(proto == IPPROTO_ICMPV6) ? "ICMPV6 " :
+			(proto == IPPROTO_TCP)	  ? "TCP " :
+			(proto == IPPROTO_UDP)	  ? "UDP " :
+			(proto == IPPROTO_SCTP)	  ? "SCTP " :
+						    "UNKNOWN ") :
+		"",
+
+	    ipaddr_ntoa(from), hostname);
 
 	s = (from->af == AF_INET) ? ((buf[14] & 0x0f) * 4) + 14 :
 				    (ipv6_offset(buf + 14, n - 14) + 14);
 
 	if (!err) {
-		if (proto == IPPROTO_ICMP || proto == IPPROTO_ICMPV6)
+		switch (proto) {
+		case IPPROTO_ICMP:
+		case IPPROTO_ICMPV6:
 			printf(" icmp_seq=%hu",
 			    ntohs((*(u_short *)(buf + s + 6))));
-		else
+			break;
+		case IPPROTO_TCP:
+			printf(" id=%zu flags=", id);
+
+			/* In tcpdump style: https://github.com/
+			 * the-tcpdump-group/tcpdump/blob/master/
+			 * print-tcp.c.  */
+			if (buf[s + 13] & 0x01) /* FIN */
+				putchar('F');
+			if (buf[s + 13] & 0x02) /* SYN */
+				putchar('S');
+			if (buf[s + 13] & 0x04) /* RST */
+				putchar('R');
+			if (buf[s + 13] & 0x08) /* PUSH */
+				putchar('P');
+			if (buf[s + 13] & 0x10) /* ACK */
+				putchar('.');
+			if (buf[s + 13] & 0x20) /* URG */
+				putchar('U');
+			if (buf[s + 13] & 0x40) /* ECE */
+				putchar('E');
+			if (buf[s + 13] & 0x80) /* CWR */
+				putchar('W');
+			if (buf[s + 13] & 0x100) /* AE */
+				putchar('e');
+			break;
+		case IPPROTO_SCTP:
+			printf(" id=%zu type=", id);
+			switch (buf[s + 12]) { /* CHUNK TYPE */
+			case 0:		       /* Payload Data */
+				printf("data");
+				break;
+			case 1: /* Initiation */
+				printf("init");
+				break;
+			case 2: /* Initiation Acknowledgement */
+				printf("init-ack");
+				break;
+			case 3: /* Selective Acknowledgement */
+				printf("sack");
+				break;
+			case 4: /* Heartbeat Request */
+				printf("heartbeat");
+				break;
+			case 5: /* Heartbeat Acknowledgement */
+				printf("heartbeat-ack");
+				break;
+			case 6: /* Abort */
+				printf("abort");
+				break;
+			case 7: /* Shutdown */
+				printf("shutdown");
+				break;
+			case 8: /* Shutdown Acknowledgement */
+				printf("shutdown-ack");
+				break;
+			case 9: /* Operation Error */
+				printf("error");
+				break;
+			case 10: /* State Cookie */
+				printf("cookie-echo");
+				break;
+			case 11: /* Cookie Acknowledgement */
+				printf("cookie-ack");
+				break;
+			case 12: /* Reserved for Explicit Congestion
+				  * Notification Echo */
+				printf("ecne");
+				break;
+			case 13: /* Reserved for Congestion Window Reduced */
+				printf("cwr");
+				break;
+			case 14: /* Shutdown Complete */
+				printf("shutdown-complete");
+				break;
+			default:
+				printf("Bad SCTP type: %hhu", buf[s + 12]);
+				break;
+			}
+			break;
+		case IPPROTO_UDP:
 			printf(" id=%zu", id);
+			break;
+		}
+		printf(" ttl=%hhu", (from->af == AF_INET) ? buf[22] : buf[11]);
 	} else if (proto == IPPROTO_ICMP) {
 		putchar(' ');
 		switch (((err >> 8) & 0xff)) {
@@ -920,8 +1005,12 @@ loop(ipaddr_t *ip)
 	curtp = *ip;
 	rcv = 0;
 
-	printf("PING %s%s: %zu data bytes\n", ipaddr_ntoa(ip),
-	    ((!Rflag) ? resolve_dns(ip) : ""), payloadlen);
+	char hostname[65535] = { 0 };
+	snprintf(hostname, sizeof(hostname), "%s",
+	    (!Rflag) ? resolve_dns(ip) : "");
+
+	printf("PING %s%s: %zu data bytes\n", ipaddr_ntoa(ip), hostname,
+	    payloadlen);
 
 	/* If preload is specified, perform the corresponding
 	 * actions for each enabled method.  */
@@ -988,7 +1077,25 @@ loop(ipaddr_t *ip)
 				if (!fflag) {
 					if (errno == 0)
 						warnx(
-						    "no response received (timeout)");
+						    "%s no response received (timeout)",
+						    (flag & ECHO_METHOD) ?
+							"echo" :
+							(flag & SYN_METHOD) ?
+							"syn" :
+							(flag & ACK_METHOD) ?
+							"ack" :
+							(flag & INFO_METHOD) ?
+							"info" :
+							(flag &
+							    TIMESTAMP_METHOD) ?
+							"timestamp" :
+							(flag & UDP_METHOD) ?
+							"udp" :
+							(flag & COOKIE_METHOD) ?
+							"cookie" :
+							(flag & INIT_METHOD) ?
+							"init" :
+							"");
 					else
 						warn("recv");
 				}
@@ -1003,7 +1110,8 @@ loop(ipaddr_t *ip)
 					/* We display data about the package we
 					 * have successfully received.  */
 					pr_pack(buf, n, tvrtt(&ts_s, &ts_e),
-					    snd, &cbdata.from, cbdata.err);
+					    rcv - 1, &cbdata.from, cbdata.err,
+					    hostname);
 				else
 					putchar('.'), fflush(stdout);
 			}
