@@ -34,6 +34,7 @@
 #define UDP_METHOD	 (1U << 5)
 #define COOKIE_METHOD	 (1U << 6)
 #define INIT_METHOD	 (1U << 7)
+#define MASK_METHOD	 (1U << 8)
 
 static bool Iflag = 0;
 static char *Iopt = NULL;
@@ -137,7 +138,9 @@ usage(char **av)
 	fputs("  -E\t\tenable icmp echo ping method\n", stderr); /* echo */
 	fputs("  -F\t\tenable icmp info ping method\n", stderr); /* info */
 	fputs("  -M\t\tenable icmp timestamp ping method\n",
-	    stderr); /* timestamp */
+	    stderr);						 /* timestamp */
+	fputs("  -F\t\tenable icmp info ping method\n", stderr); /* info */
+	fputs("  -k\t\tenable icmp mask ping method\n", stderr); /* mask */
 
 	/* TCP, UDP, SCTP, UDP-LITE */
 	fputs("  -K\t\tenable tcp ack ping method\n", stderr);
@@ -248,6 +251,7 @@ callback(void *in, size_t n, void *arg)
 	case INFO_METHOD:
 	case ECHO_METHOD:
 	case TIMESTAMP_METHOD:
+	case MASK_METHOD:
 		if (s == 34 && buf[23] != IPPROTO_ICMP)
 			return 0;
 		if (s == 54 && buf[20] != IPPROTO_ICMPV6)
@@ -259,6 +263,8 @@ callback(void *in, size_t n, void *arg)
 			return 0;
 
 		/* Solum IPv4.  */
+		if (cbdata->method == MASK_METHOD && buf[s] != 18)
+			return 0;
 		if (cbdata->method == INFO_METHOD && buf[s] != 16)
 			return 0;
 		if (cbdata->method == TIMESTAMP_METHOD && buf[s] != 14)
@@ -448,11 +454,14 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 	case ECHO_METHOD:
 	case INFO_METHOD:
 	case TIMESTAMP_METHOD:
+	case MASK_METHOD:
 		switch (target->af) {
 		case AF_INET:
 			proto = IPPROTO_ICMP;
 			if (method == TIMESTAMP_METHOD)
 				len += 12;
+			if (method == MASK_METHOD)
+				len += 4;
 			break;
 		case AF_INET6:
 			proto = IPPROTO_ICMPV6;
@@ -547,6 +556,9 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 		case INFO_METHOD:
 			outpack[s] = 15;
 			break;
+		case MASK_METHOD:
+			outpack[s] = 17;
+			break;
 		}
 		outpack[s + 1] = 0;			    /* code */
 		*(u_short *)(outpack + s + 2) = htons(0);   /* chksum */
@@ -558,6 +570,8 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 			*(u_int *)(outpack + s + 12) = htonl(random_u32());
 			*(u_int *)(outpack + s + 16) = htonl(random_u32());
 		}
+		if (method == MASK_METHOD)
+			*(u_int *)(outpack + s + 8) = htonl(random_u32());
 
 		/* Only data ECHO_METHOD */
 		if (data && datalen && method == ECHO_METHOD)
@@ -568,6 +582,7 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 			*(u_short *)(outpack + s +
 			    2) = in_cksum((u_short *)(outpack + s),
 			    (int)((method == TIMESTAMP_METHOD) ? 20 :
+				    (method == MASK_METHOD)    ? 12 :
 								 8 + datalen));
 			break;
 		case AF_INET6:
@@ -1048,11 +1063,12 @@ loop(ipaddr_t *ip)
 
 			/* We skip methods that are not suitable for us.  */
 			if (((flag & TIMESTAMP_METHOD) ||
-				(flag & INFO_METHOD)) &&
+				(flag & INFO_METHOD) || (flag & MASK_METHOD)) &&
 			    ip->af == AF_INET6) {
 				warnx("ipv6 not support %s method (skip)",
-				    (flag & INFO_METHOD) ? "info" :
-							   "timestamp");
+				    (flag & INFO_METHOD)     ? "info" :
+					(flag & MASK_METHOD) ? "mask" :
+							       "timestamp");
 				continue;
 			}
 
@@ -1095,6 +1111,8 @@ loop(ipaddr_t *ip)
 							"cookie" :
 							(flag & INIT_METHOD) ?
 							"init" :
+							(flag & MASK_METHOD) ?
+							"mask" :
 							"");
 					else
 						warn("recv");
@@ -1187,7 +1205,7 @@ main(int c, char **av)
 
 	while (
 	    (ch = getopt(c, av,
-		 "D:I:s:6:S:i:w:n:4rdO:z:T:EFMKYUCp:P:H:a:l:3AfoN:vhRVG:")) !=
+		 "kD:I:s:6:S:i:w:n:4rdO:z:T:EFMKYUCp:P:H:a:l:3AfoN:vhRVG:")) !=
 	    -1) {
 		switch (ch) {
 		case 'D':
@@ -1206,6 +1224,9 @@ main(int c, char **av)
 			npackets = 1000000;
 			wait = 100 * 1000000L; /* 100 ms */
 			break;
+		case 'k':
+			method |= MASK_METHOD;
+			break;
 		case 'o':
 			npackets = 1, Nflag = 1;
 			break;
@@ -1221,7 +1242,7 @@ main(int c, char **av)
 		case 'A':
 			method = ECHO_METHOD | ECHO_METHOD | ACK_METHOD |
 			    INFO_METHOD | TIMESTAMP_METHOD | UDP_METHOD |
-			    COOKIE_METHOD | INIT_METHOD;
+			    COOKIE_METHOD | INIT_METHOD | MASK_METHOD;
 			break;
 		case 'E':
 			method |= ECHO_METHOD;
@@ -1382,10 +1403,12 @@ main(int c, char **av)
 		if ((sb = strchr(p, '/')))
 			*sb++ = '\0';
 		if (!ipaddr_pton(p, &ip)) {
-			if (!resolveipv4(p, &ip.ip.v4))
-				errx(1, "failed resolve \"%s\"", p);
-			else
+			if (ifd.support6 && resolveipv6(p, &ip.ip.v6))
+				ip.af = AF_INET6;
+			else if (ifd.support4 && resolveipv4(p, &ip.ip.v4))
 				ip.af = AF_INET;
+			else
+				errx(1, "failed resolve \"%s\"", p);
 		}
 
 		if (ip.af == AF_INET && !ifd.support4)

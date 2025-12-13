@@ -251,6 +251,35 @@ resolveipv4(const char *hostname, struct in_addr *buf)
 	return 0;
 }
 
+bool
+resolveipv6(const char *hostname, struct in6_addr *buf)
+{
+	struct addrinfo hints = { .ai_family = AF_INET6,
+		.ai_socktype = SOCK_STREAM },
+			*res, *p;
+	char addrstr[INET6_ADDRSTRLEN];
+	size_t n = 0;
+
+	if (getaddrinfo(hostname, NULL, &hints, &res) == 0) {
+		for (p = res; p; p = p->ai_next)
+			if (p->ai_family == AF_INET6)
+				n++;
+
+		memcpy(buf, &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr,
+		    sizeof(struct in6_addr));
+
+		if (n > 1) {
+			inet_ntop(AF_INET6, buf, addrstr, sizeof(addrstr));
+			warnx("%s has %zu ipv6 addresses; using %s", hostname,
+			    n, addrstr);
+		}
+
+		freeaddrinfo(res);
+		return 1;
+	}
+	return 0;
+}
+
 void
 tvsub(struct timeval *out, struct timeval *in)
 {
