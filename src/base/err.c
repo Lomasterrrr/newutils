@@ -27,6 +27,8 @@
 
 #ifdef __LINUX
 
+extern const char *__progname;
+
 NORETURN void
 verr(int eval, const char *fmt, va_list ap)
 {
@@ -55,7 +57,8 @@ verrx(int eval, const char *fmt, va_list ap)
 	fprintf(stderr, "%s: ", __progname);
 	if (fmt)
 		vfprintf(stderr, fmt, ap);
-	fputc('\n', stderr) exit(eval);
+	fputc('\n', stderr);
+	exit(eval);
 }
 
 NORETURN void
@@ -95,7 +98,7 @@ vwarnx(const char *fmt, va_list ap)
 	fprintf(stderr, "%s: ", __progname);
 	if (fmt)
 		vfprintf(stderr, fmt, ap);
-	fputc('\n', stderr)
+	fputc('\n', stderr);
 }
 
 void
