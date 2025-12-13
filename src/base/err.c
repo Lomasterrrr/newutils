@@ -26,18 +26,36 @@
 #include "../../include/base.h"
 
 #ifdef __LINUX
+
+NORETURN void
+verr(int eval, const char *fmt, va_list ap)
+{
+	int save = errno;
+	fprintf(stderr, "%s: ", __progname);
+	if (fmt) {
+		vfprintf(stderr, fmt, ap);
+		fprintf(stderr, ": ");
+	}
+	fprintf(stderr, "%s\n", strerror(save));
+	exit(eval);
+}
+
 NORETURN void
 err(int eval, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	if (fmt) {
-		fprintf(stderr, "err: ");
-		vfprintf(stderr, fmt, ap);
-	}
+	verr(eval, fmt, ap);
 	va_end(ap);
-	fprintf(stderr, " (%s)\n", strerror(errno));
-	exit(eval);
+}
+
+NORETURN void
+verrx(int eval, const char *fmt, va_list ap)
+{
+	fprintf(stderr, "%s: ", __progname);
+	if (fmt)
+		vfprintf(stderr, fmt, ap);
+	fputc('\n', stderr) exit(eval);
 }
 
 NORETURN void
@@ -45,44 +63,47 @@ errx(int eval, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	if (fmt) {
-		fprintf(stderr, "err: ");
-		vfprintf(stderr, fmt, ap);
-	}
-	fputc(0x0a, stderr);
+	verrx(eval, fmt, ap);
 	va_end(ap);
-	exit(eval);
+}
+
+void
+vwarn(const char *fmt, va_list ap)
+{
+	int save = errno;
+	fprintf(stderr, "%s: ", __progname);
+	if (fmt) {
+		vfprintf(stderr, fmt, ap);
+		fprintf(stderr, ": ");
+	}
+	fprintf(stderr, "%s\n", strerror(save));
+	errno = save;
 }
 
 void
 warn(const char *fmt, ...)
 {
-	int save = errno;
 	va_list ap;
-
 	va_start(ap, fmt);
-	if (fmt) {
-		vfprintf(stderr, fmt, ap);
-		fprintf(stderr, ": ");
-	}
+	vwarn(fmt, ap);
 	va_end(ap);
-	fprintf(stderr, "%s\n", strerror(errno));
+}
 
-	errno = save;
+void
+vwarnx(const char *fmt, va_list ap)
+{
+	fprintf(stderr, "%s: ", __progname);
+	if (fmt)
+		vfprintf(stderr, fmt, ap);
+	fputc('\n', stderr)
 }
 
 void
 warnx(const char *fmt, ...)
 {
-	int save = errno;
 	va_list ap;
-
 	va_start(ap, fmt);
-	if (fmt)
-		vfprintf(stderr, fmt, ap);
-	fputc(0x0a, stderr);
+	vwarnx(fmt, ap);
 	va_end(ap);
-
-	errno = save;
 }
 #endif
