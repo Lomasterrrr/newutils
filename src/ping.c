@@ -114,56 +114,49 @@ usage(char **av)
 {
 	fputs("Usage\n", stderr);
 	fprintf(stderr, "  %s [options] <targets>\n\n", av[0]);
-	/* Interface */
 	fputs("  -I <dev>\tset your interface and his info\n", stderr);
 	fputs("  -s <ipv4>\tset source ipv4 address\n", stderr);
 	fputs("  -6 <ipv6>\tset source custom ipv6 address\n", stderr);
 	fputs("  -S <mac>\tset source mac address\n", stderr);
-
 	fputs("  -i <time>\tset interval between packets; ex: 300ms\n", stderr);
 	fputs("  -w <time>\tset wait time or timeout; ex: 2s, 10ms\n", stderr);
 	fputs("  -n <count>\tset your num of try\n", stderr);
 	fputs("  -D <num>\tset your ping preload\n", stderr);
 	fputs("  -N <count>\tset how many packets to recv (replies)\n", stderr);
-
-	/* IP options */
-	fputs("  -4\t\tset More Fragment flag (ipv4)\n", stderr);
-	fputs("  -r\t\tset Reserved Fragment flag (ipv4)\n", stderr);
-	fputs("  -d\t\tset Dont't Fragment flag (ipv4)\n", stderr);
 	fputs("  -O <hex>\tset your ip options in hex (ipv4)\n", stderr);
 	fputs("  -z <tos>\tset num in type of service/traffic class\n", stderr);
 	fputs("  -T <ttl>\tset ttl/hop limit\n", stderr);
-
-	/* ICMP options */
-	fputs("  -E\t\tenable icmp echo ping method\n", stderr); /* echo */
-	fputs("  -F\t\tenable icmp info ping method\n", stderr); /* info */
-	fputs("  -M\t\tenable icmp timestamp ping method\n",
-	    stderr);						 /* timestamp */
-	fputs("  -F\t\tenable icmp info ping method\n", stderr); /* info */
-	fputs("  -k\t\tenable icmp mask ping method\n", stderr); /* mask */
-
-	/* TCP, UDP, SCTP, UDP-LITE */
-	fputs("  -K\t\tenable tcp ack ping method\n", stderr);
-	fputs("  -Y\t\tenable tcp syn ping method\n", stderr);
-	fputs("  -U\t\tenable udp ping method\n", stderr);
-	fputs("  -C\t\tenable sctp cookie ping method\n", stderr);
-	fputs("  -V\t\tenable sctp init ping method\n", stderr);
 	fputs("  -p <port>\tset destination port\n", stderr);
 	fputs("  -G <hex>\tset your tcp options in hex (tcp)\n", stderr);
 	fputs("  -P <port>\tset source (your) port\n", stderr);
 	fputs("  -H <hex>\tset payload data in hex numbers\n", stderr);
 	fputs("  -a <ascii>\tset payload data in ascii\n", stderr);
 	fputs("  -l <len>\tset random payload data\n", stderr);
+	fputs("  -4\t\tset More Fragment flag (ipv4)\n", stderr);
+	fputs("  -r\t\tset Reserved Fragment flag (ipv4)\n", stderr);
+	fputs("  -d\t\tset Dont't Fragment flag (ipv4)\n", stderr);
 	fputs("  -3\t\tuse adler32 sctp checksum\n", stderr);
-
-	fputs("  -A\t\tenable all ping methods\n", stderr);
 	fputs("  -f\t\tflood ping\n", stderr);
 	fputs("  -o\t\texit after first reply packet\n", stderr);
 	fputs("  -R\t\tno resolve dns\n", stderr);
 	fputs("  -v\t\tshow some debugging information\n", stderr);
 	fputs("  -h\t\tshow this help message and exit\n", stderr);
 
+	fputs("\n  -E\t\tenable icmp echo ping method\n", stderr);
+	fputs("  -F\t\tenable icmp info ping method\n", stderr);
+	fputs("  -M\t\tenable icmp timestamp ping method\n", stderr);
+	fputs("  -k\t\tenable icmp mask ping method\n", stderr);
+	fputs("  -K\t\tenable tcp ack ping method\n", stderr);
+	fputs("  -Y\t\tenable tcp syn ping method\n", stderr);
+	fputs("  -U\t\tenable udp ping method\n", stderr);
+	fputs("  -C\t\tenable sctp cookie ping method\n", stderr);
+	fputs("  -V\t\tenable sctp init ping method\n", stderr);
+	fputs("  -A\t\tenable all ping methods\n", stderr);
+
 	fputs("\nExamples\n", stderr);
+	fprintf(stderr, "  %s -A scanme.nmap.org\n", av[0]);
+	fprintf(stderr, "  %s -a hellohost -d -K google.com\n", av[0]);
+	fprintf(stderr, "  %s -n 1 -p 443 -Y scanme.nmap.org\n", av[0]);
 	exit(0);
 }
 
@@ -218,7 +211,7 @@ callback(void *in, size_t n, void *arg)
 			return 0;
 		s += 14;
 
-		/* ICMPV6 error received.  */
+		/* ICMPV6 error/etc. received.  */
 		if (buf[20] == IPPROTO_ICMPV6 && buf[s] != 129) {
 			if (memcmp((buf + s + 16), ifd.srcip6, 16) != 0)
 				return 0;
@@ -240,7 +233,8 @@ callback(void *in, size_t n, void *arg)
 			return 0;
 
 		/* SYN/ACK or RST.  */
-		if (buf[s + 13] != 18 && buf[s + 13] != 4)
+		if (!((buf[s + 13] & 0x02) && (buf[s + 13] & 0x10)) &&
+		    !(buf[s + 13] & 0x04))
 			return 0;
 	ports:
 		if (ntohs(*(u_short *)(buf + s)) != cbdata->dstport)
@@ -637,7 +631,7 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 		*(u_short *)(outpack + s + 2) = htons(dstport); /* dst port */
 		*(u_int *)(outpack + s + 4) = htonl((method == INIT_METHOD) ?
 			0 :
-			random_range(5, UINT_MAX));		    /* vtag */
+			random_range(5, USHRT_MAX));		    /* vtag */
 		*(u_int *)(outpack + s + 8) = htonl(0);		    /* chksum */
 		outpack[s + 12] = (method == INIT_METHOD) ? 1 : 10; /* type */
 		outpack[s + 13] = 0;				    /* flags */
@@ -647,14 +641,12 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 			    (4 + (u_short)datalen))); /* len */
 
 		if (method == INIT_METHOD) {
+			/* Nmap sctp init configuration.  */
 			*(u_int *)(outpack + s + 16) = htonl(
-			    random_range(5, UINT_MAX)); /* itag */
-			*(u_int *)(outpack + s + 20) = htonl(
-			    random_range(5, UINT_MAX)); /* arwnd */
-			*(u_short *)(outpack + s + 24) = htonl(
-			    random_range(5, USHRT_MAX)); /* nos */
-			*(u_short *)(outpack + s + 26) = htonl(
-			    random_range(5, USHRT_MAX)); /* nis */
+			    random_range(5, UINT_MAX));		     /* itag */
+			*(u_int *)(outpack + s + 20) = htonl(32768); /* arwnd */
+			*(u_short *)(outpack + s + 24) = htons(10);  /* nos */
+			*(u_short *)(outpack + s + 26) = htons(2048); /* nis */
 			*(u_int *)(outpack + s + 28) = htonl(
 			    random_range(5, UINT_MAX)); /* itsn */
 		} else if (data && datalen)
@@ -695,9 +687,10 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 		break;
 	}
 
+	errno = 0;
 	n = dlt_send(dlt, outpack, len);
 	if (n < 0 || n != len) {
-		if (n < 0)
+		if (n < 0 && errno != 0)
 			warn("sendto");
 
 		warnx("wrote %s %lu chars, ret=%zd", ipaddr_ntoa(target), len,
@@ -743,6 +736,30 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id, ipaddr_t *from,
 		case IPPROTO_ICMPV6:
 			printf(" icmp_seq=%hu",
 			    ntohs((*(u_short *)(buf + s + 6))));
+			if (proto == IPPROTO_ICMP && buf[s] != 0) {
+				printf(" type=");
+				switch (buf[s]) {
+				case 14:
+					printf("timestamp");
+					break;
+				case 16:
+					printf("info");
+					break;
+				case 18:
+					printf("mask");
+					break;
+				default:
+					printf("%hhu", buf[s]);
+					break;
+				}
+			} else if (proto == IPPROTO_ICMPV6 && buf[s] != 129) {
+				printf(" type=");
+				switch (buf[s]) {
+				default:
+					printf("%hhu", buf[s]);
+					break;
+				}
+			}
 			break;
 		case IPPROTO_TCP:
 			printf(" id=%zu flags=", id);
@@ -1033,6 +1050,11 @@ loop(ipaddr_t *ip)
 		for (u_int j = 0; j < 32; ++j) {
 			if (!(method & (1U << j)))
 				continue;
+			if ((((1U << j) & TIMESTAMP_METHOD) ||
+				((1U << j) & INFO_METHOD) ||
+				((1U << j) & MASK_METHOD)) &&
+			    ip->af == AF_INET6)
+				continue;
 			snd = Dopt + 1;
 			while (--snd)
 				pinger(ip, (1U << j), payload,
@@ -1091,7 +1113,9 @@ loop(ipaddr_t *ip)
 			if ((n = dlt_recv_cb(dlt, buf, sizeof(buf), callback,
 				 (void *)&cbdata, wait, &ts_s, &ts_e)) == -1) {
 				if (!fflag) {
-					if (errno == 0)
+					if (errno != 0)
+						warn("recv");
+					else
 						warnx(
 						    "%s no response received (timeout)",
 						    (flag & ECHO_METHOD) ?
@@ -1114,8 +1138,6 @@ loop(ipaddr_t *ip)
 							(flag & MASK_METHOD) ?
 							"mask" :
 							"");
-					else
-						warn("recv");
 				}
 			} else {
 				++nreceived;
