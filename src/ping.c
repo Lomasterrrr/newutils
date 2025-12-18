@@ -631,7 +631,7 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 		*(u_short *)(outpack + s + 2) = htons(dstport); /* dst port */
 		*(u_int *)(outpack + s + 4) = htonl((method == INIT_METHOD) ?
 			0 :
-			random_range(5, USHRT_MAX));		    /* vtag */
+			random_range(5, UINT_MAX));		    /* vtag */
 		*(u_int *)(outpack + s + 8) = htonl(0);		    /* chksum */
 		outpack[s + 12] = (method == INIT_METHOD) ? 1 : 10; /* type */
 		outpack[s + 13] = 0;				    /* flags */
