@@ -560,7 +560,12 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 		*(u_short *)(outpack + s + 6) = htons(snd); /* seq */
 
 		if (method == TIMESTAMP_METHOD) {
-			*(u_int *)(outpack + s + 8) = htonl(random_u32());
+			struct timespec now = { 0 };
+			clock_gettime(CLOCK_MONOTONIC, &now);
+			*(u_int *)(outpack + s + 8) = htonl(
+			    (now.tv_sec % (24 * 60 * 60)) * 1000 +
+			    now.tv_nsec / 1000000);
+
 			*(u_int *)(outpack + s + 12) = htonl(random_u32());
 			*(u_int *)(outpack + s + 16) = htonl(random_u32());
 		}
@@ -701,6 +706,27 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 }
 
 /*
+ *	P R _ T S T A M P
+ *
+ * Convert ICMP timestamp to string.
+ */
+inline static char *
+pr_tstamp(u_int timestamp)
+{
+	static char buf[11];
+	int hour, min, sec;
+
+	sec = ntohl(timestamp) / 1000;
+	hour = sec / 60 / 60;
+	min = (sec % (60 * 60)) / 60;
+	sec = (sec % (60 * 60)) % 60;
+
+	snprintf(buf, sizeof(buf), "%02d:%02d:%02d", hour, min, sec);
+
+	return buf;
+}
+
+/*
  *		P R _ P A C K
  *
  * Prints information about the packet according
@@ -737,19 +763,28 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id, ipaddr_t *from,
 			printf(" icmp_seq=%hu",
 			    ntohs((*(u_short *)(buf + s + 6))));
 			if (proto == IPPROTO_ICMP && buf[s] != 0) {
-				printf(" type=");
 				switch (buf[s]) {
 				case 14:
-					printf("timestamp");
+					printf(" tso=%s",
+					    pr_tstamp(*(u_int *)(buf + s + 8)));
+					printf(" tsr=%s",
+					    pr_tstamp(
+						*(u_int *)(buf + s + 12)));
+					printf(" tst=%s",
+					    pr_tstamp(
+						*(u_int *)(buf + s + 16)));
 					break;
 				case 16:
-					printf("info");
+					printf("type=info");
 					break;
-				case 18:
-					printf("mask");
+				case 18: {
+					struct in_addr mask = { *(
+					    u_int *)(buf + s + 8) };
+					printf("mask=%s", inet_ntoa(mask));
 					break;
+				}
 				default:
-					printf("%hhu", buf[s]);
+					printf("type=%hhu", buf[s]);
 					break;
 				}
 			} else if (proto == IPPROTO_ICMPV6 && buf[s] != 129) {
