@@ -5,6 +5,7 @@ Current set of available:
 ```
 i. arping
 ii. traceroute
+iii. ping
 ```
 
 ### Build
