@@ -1153,7 +1153,8 @@ loop(ipaddr_t *ip)
 					    rcv - 1, &cbdata.from, cbdata.err,
 					    hostname);
 				else
-					putchar('.'), fflush(stdout);
+					tvrtt(&ts_s, &ts_e), putchar('.'),
+					    fflush(stdout);
 			}
 		}
 		++snd; /* One request has been completed.  */
