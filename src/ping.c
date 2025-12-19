@@ -738,9 +738,11 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id, ipaddr_t *from,
 {
 	int proto = (from->af == AF_INET) ? buf[23] : buf[20];
 	char t[65535] = { 0 };
-	ssize_t s = 0;
 
-	printf("%zu bytes from %s%s%s:", n,
+	size_t s = (from->af == AF_INET) ? ((buf[14] & 0x0f) * 4) + 14 :
+					   (ipv6_offset(buf + 14, n - 14) + 14);
+
+	printf("%zu bytes from %s%s%s:", n - s,
 
 	    (method & (method - 1)) ?
 		((proto == IPPROTO_ICMP)	  ? "ICMP " :
@@ -752,9 +754,6 @@ pr_pack(u_char *buf, size_t n, long long rtt, size_t id, ipaddr_t *from,
 		"",
 
 	    ipaddr_ntoa(from), hostname);
-
-	s = (from->af == AF_INET) ? ((buf[14] & 0x0f) * 4) + 14 :
-				    (ipv6_offset(buf + 14, n - 14) + 14);
 
 	if (!err) {
 		switch (proto) {
@@ -1451,6 +1450,13 @@ main(int c, char **av)
 
 	if (!method)
 		method = ECHO_METHOD;
+
+	/* Default payload.  */
+	if (!payload && !payloadlen) {
+		payload = calloc(1, (payloadlen = 56));
+		for (ch = 0; ch < payloadlen; ch++)
+			payload[ch] = (u_char)ch;
+	}
 
 	if (c <= 0)
 		errx(1, "no targets specified");
