@@ -477,7 +477,9 @@ pinger(ipaddr_t *target, int method, u_char *data, u_int datalen,
 		break;
 	}
 
-	len += datalen;
+	if (method != INIT_METHOD && method != MASK_METHOD &&
+	    method != TIMESTAMP_METHOD && method != INFO_METHOD)
+		len += datalen;
 
 	id = random_range(106, USHRT_MAX);
 	if (!Pflag)
@@ -1297,7 +1299,7 @@ main(int c, char **av)
 			_3flag = 1;
 			break;
 		case 'A':
-			method = ECHO_METHOD | ECHO_METHOD | ACK_METHOD |
+			method = ECHO_METHOD | SYN_METHOD | ACK_METHOD |
 			    INFO_METHOD | TIMESTAMP_METHOD | UDP_METHOD |
 			    COOKIE_METHOD | INIT_METHOD | MASK_METHOD;
 			break;
