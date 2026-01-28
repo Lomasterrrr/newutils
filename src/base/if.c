@@ -349,10 +349,12 @@ __get_ipv6(const char *if_name, u_char *buf)
 
 			/* Localhost? Hoc okay.  */
 			memcpy(buf, &sin6->sin6_addr, 16);
+			freeifaddrs(ifap);
 			return 1;
 		}
 	}
 
+	freeifaddrs(ifap);
 	return 0;
 }
 
