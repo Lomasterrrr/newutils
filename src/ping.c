@@ -36,50 +36,50 @@
 #define INIT_METHOD	 (1U << 7)
 #define MASK_METHOD	 (1U << 8)
 
-static bool Iflag = 0;
-static char *Iopt = NULL;
-static dlt_t *dlt = NULL;		     /* socket */
+static bool Iflag;
+static char *Iopt;
+static dlt_t *dlt;		     /* socket */
 static long long interval = 1000 * 1000000L; /* delay/interval */
-static bool sflag = 0;
-static bool vflag = 0;
-static u_char outpack[2048] = { 0 };
-static struct in_addr sopt = { 0 };
-static bool Sflag = 0;
-static bool Tflag = 0;
-static struct ether_addr Sopt = { 0 };
-static bool prstats = 0; /* print last stats? */
-static size_t ntransmitted = 0;
-static size_t nreceived = 0;
+static bool sflag;
+static bool vflag;
+static u_char outpack[2048];
+static struct in_addr sopt;
+static bool Sflag;
+static bool Tflag;
+static struct ether_addr Sopt;
+static bool prstats; /* print last stats? */
+static size_t ntransmitted;
+static size_t nreceived;
 static size_t npackets = 5;
-static long long tmin = 0;
+static long long tmin;
 static long long wait = 1000 * 1000000LL; /* timeout */
-static long long tmax = 0;
-static if_data_t ifd = { 0 }; /* interface data */
-static long long tsum = 0;
-static u_int method = 0;
-static bool Rflag = 0;
-static bool _3flag = 0;
-static bool Pflag = 0;
-static bool pflag = 0;
-static bool Dflag = 0;
-static size_t Dopt = 0;
-static bool zflag = 0;
-static bool fflag = 0;
-static int zopt = 0;
-static bool Nflag = 0;
+static long long tmax;
+static if_data_t ifd; /* interface data */
+static long long tsum;
+static u_int method;
+static bool Rflag;
+static bool _3flag;
+static bool Pflag;
+static bool pflag;
+static bool Dflag;
+static size_t Dopt;
+static bool zflag;
+static bool fflag;
+static int zopt;
+static bool Nflag;
 static int dstport = 80; /* default 80 */
-static int srcport = 0;
-static bool _6flag = 0;
-static struct in6_addr _6opt = { 0 };
-static int ttl = 0;
-static int off = 0;
-static ipaddr_t curtp = { 0 }; /* current target */
-static u_char *payload = NULL;
-static size_t payloadlen = 0;
-static u_char *xipopts = NULL;
-static size_t xipoptslen = 0;
-static u_char *xtcpopts = NULL;
-static size_t xtcpoptslen = 0;
+static int srcport;
+static bool _6flag;
+static struct in6_addr _6opt;
+static int ttl;
+static int off;
+static ipaddr_t curtp; /* current target */
+static u_char *payload;
+static size_t payloadlen;
+static u_char *xipopts;
+static size_t xipoptslen;
+static u_char *xtcpopts;
+static size_t xtcpoptslen;
 
 /* These counters store the number of responses and
  * requests; here, one request consists of sending

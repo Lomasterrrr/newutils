@@ -25,50 +25,50 @@
 
 #include "../include/base.h"
 
-static dlt_t *dlt = NULL;      /* socket */
-static long long interval = 0; /* delay/interval */
-static bool sflag = 0;
-static bool vflag = 0;
-static struct in_addr sopt = { 0 };
-static bool Sflag = 0;
-static struct ether_addr Sopt = { 0 };
-static bool Iflag = 0;
-static char *Iopt = NULL;
-static bool prstats = 0; /* print last stats? */
-static size_t ntransmitted = 0;
-static size_t nreceived = 0;
+static dlt_t *dlt;      /* socket */
+static long long interval; /* delay/interval */
+static bool sflag;
+static bool vflag;
+static struct in_addr sopt;
+static bool Sflag;
+static struct ether_addr Sopt;
+static bool Iflag;
+static char *Iopt;
+static bool prstats; /* print last stats? */
+static size_t ntransmitted;
+static size_t nreceived;
 static size_t ntry = 3;
-static long long tmin = 0;
+static long long tmin;
 static long long wait = 150 * 1000000LL; /* timeout */
-static long long tmax = 0;
-static if_data_t ifd = { 0 }; /* interface data */
-static long long tsum = 0;
+static long long tmax;
+static if_data_t ifd; /* interface data */
+static long long tsum;
 static int method = IPPROTO_UDP;
-static long long *rtts = NULL;
-static bool reached = 0;
-static int curhop = 0;
-static u_short lid = 0; /* last ip id */
-static bool Aflag = 0;
-static bool Pflag = 0;
-static bool pflag = 0;
-static size_t unreachable = 0;
-static int Popt = 0;
-static int popt = 0;
-static int dstport = 0;
-static bool _6flag = 0;
-static struct in6_addr _6opt = { 0 };
+static long long *rtts;
+static bool reached;
+static int curhop;
+static u_short lid; /* last ip id */
+static bool Aflag;
+static bool Pflag;
+static bool pflag;
+static size_t unreachable;
+static int Popt;
+static int popt;
+static int dstport;
+static bool _6flag;
+static struct in6_addr _6opt;
 static int first = 1;
 static int total = 30;
-static int ttl = 0;
-static int mttl = 0;
-static ipaddr_t source = { 0 };
-static int off = 0;
-static ipaddr_t curtp = { 0 }; /* current target */
-static bool oflag = 0;
-static int oopt = 0;
-static size_t hopid = 0;
-static u_char *payload = NULL;
-static size_t payloadlen = 0;
+static int ttl;
+static int mttl;
+static ipaddr_t source;
+static int off;
+static ipaddr_t curtp; /* current target */
+static bool oflag;
+static int oopt;
+static size_t hopid;
+static u_char *payload;
+static size_t payloadlen;
 
 /*
  *		U S A G E

@@ -25,43 +25,43 @@
 
 #include "../include/base.h"
 
-static bool Iflag = 0;
-static char *Iopt = NULL;
-static bool _0flag = 0;
+static bool Iflag;
+static char *Iopt;
+static bool _0flag;
 static long long wait = 1000 * 1000000LL; /* timeout */
-static dlt_t *dlt = NULL;		  /* socket */
-static bool sflag = 0;
-static struct in_addr sopt = { 0 };
-static bool Sflag = 0;
+static dlt_t *dlt;		  /* socket */
+static bool sflag;
+static struct in_addr sopt;
+static bool Sflag;
 static u_char outpack[42]; /* packet for send */
-static struct ether_addr Sopt = { 0 };
-static bool bflag = 0;
-static bool Bflag = 0;
-static bool prstats = 0; /* print last stats? */
-static bool Gflag = 0;
-static bool Nflag = 0;
-static bool tflag = 0;
-static struct ether_addr topt = { 0 };
-static struct in_addr *curtp = NULL; /* current target */
-static bool vflag = 0;
-static bool eflag = 0;
-static if_data_t ifd = { 0 }; /* interface data */
-static bool Vflag = 0;
-static bool Dflag = 0;
-static bool Aflag = 0;
-static bool Uflag = 0;
-static bool dflag = 0;
-static bool lflag = 0;
-static struct ether_addr lmac = { 0 }; /* last mac address */
-static size_t npackets = 5;	       /* number of packets (-n, -N) */
-static size_t ntransmitted = 0;
-static size_t nreceived = 0;
-static size_t nrequest = 0;
-static size_t nbroadcast = 0;
-static size_t nbroadcast_rcvd = 0;
-static long long tmin = 0;
-static long long tmax = 0;
-static long long tsum = 0;
+static struct ether_addr Sopt;
+static bool bflag;
+static bool Bflag;
+static bool prstats; /* print last stats? */
+static bool Gflag;
+static bool Nflag;
+static bool tflag;
+static struct ether_addr topt;
+static struct in_addr *curtp; /* current target */
+static bool vflag;
+static bool eflag;
+static if_data_t ifd; /* interface data */
+static bool Vflag;
+static bool Dflag;
+static bool Aflag;
+static bool Uflag;
+static bool dflag;
+static bool lflag;
+static struct ether_addr lmac; /* last mac address */
+static size_t npackets;	       /* number of packets (-n, -N) */
+static size_t ntransmitted;
+static size_t nreceived;
+static size_t nrequest;
+static size_t nbroadcast;
+static size_t nbroadcast_rcvd;
+static long long tmin;
+static long long tmax;
+static long long tsum;
 static long long interval = 1000 * 1000000LL; /* delay/interval */
 
 /*
