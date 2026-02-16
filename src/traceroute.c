@@ -636,7 +636,7 @@ loop(ipaddr_t *ip)
 	tsum = 0;
 	tmax = LLONG_MIN;
 	nreceived = 0;
-	dstport = 33434; /* 32768 + 666 */
+	dstport = 33435; /* 32768 + 667 */
 	lid = 0;
 	prstats = 0;
 	tmin = LLONG_MAX;
